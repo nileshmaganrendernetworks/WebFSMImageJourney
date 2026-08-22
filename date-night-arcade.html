@@ -1,0 +1,2626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Date Night Arcade 💕</title>
+<meta name="description" content="A hyper-visual two-player date-night game collection in a single HTML file. Two screens, one code, real conversations." />
+<style>
+/* ============================================================
+   DATE NIGHT ARCADE — single-file edition
+   A living night sky: glass, glow, depth, motion.
+   ============================================================ */
+:root {
+  --bg-0: #160a14;
+  --card: rgba(255, 255, 255, 0.055);
+  --card-border: rgba(255, 255, 255, 0.11);
+  --ink: #fdf3f6;
+  --ink-dim: #c9a9bb;
+  --rose: #ff5d8f;
+  --rose-soft: #ff9ebb;
+  --peach: #ffb26b;
+  --gold: #ffd166;
+  --mint: #7bf1c3;
+  --violet: #b78cff;
+  --cyan: #9be7ff;
+  --danger: #ff6b6b;
+  --radius: 22px;
+  --font: "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --accent: var(--rose);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+html, body { min-height: 100dvh; }
+body {
+  background: var(--bg-0);
+  color: var(--ink);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+body[data-theme="signal"] { --accent: var(--mint); }
+body[data-theme="heart"] { --accent: var(--rose); }
+body[data-theme="mirror"] { --accent: var(--violet); }
+
+/* ---------- universe layers ---------- */
+#gl {
+  position: fixed; inset: 0;
+  width: 100vw; height: 100vh;
+  z-index: 0;
+  display: block;
+}
+#vignette {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% 10%, transparent 55%, rgba(10, 4, 12, 0.55) 100%),
+    linear-gradient(180deg, rgba(10,4,12,0.25), transparent 30%, transparent 70%, rgba(10,4,12,0.5));
+}
+#fx-layer { position: fixed; inset: 0; z-index: 60; pointer-events: none; overflow: hidden; }
+.fxp { position: absolute; display: block; will-change: transform, opacity; }
+.fxfloat {
+  position: absolute; transform: translate(-50%, -50%);
+  font-weight: 800; font-size: 1.3rem; color: var(--ink);
+  text-shadow: 0 0 18px currentColor;
+  animation: floatUp 1.4s ease-out both;
+  white-space: nowrap;
+}
+@keyframes floatUp {
+  0% { opacity: 0; transform: translate(-50%, -30%) scale(0.6); }
+  15% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); }
+  100% { opacity: 0; transform: translate(-50%, -190%) scale(1); }
+}
+.fxflash { position: absolute; inset: 0; animation: flashFade 0.7s ease-out both; }
+@keyframes flashFade { from { opacity: 1; } to { opacity: 0; } }
+.fxripple {
+  position: absolute; width: 14px; height: 14px;
+  transform: translate(-50%, -50%);
+  border: 2.5px solid; border-radius: 50%;
+  animation: rippleGo 0.8s ease-out both;
+}
+@keyframes rippleGo {
+  from { opacity: 0.9; width: 10px; height: 10px; }
+  to { opacity: 0; width: 130px; height: 130px; }
+}
+
+/* ---------- app shell ---------- */
+#app { position: relative; z-index: 2; }
+.view {
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 26px 18px 70px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.inner-screen { display: flex; flex-direction: column; gap: 16px; flex: 1; }
+.hidden { display: none !important; }
+
+.veil-in { animation: veilIn 0.55s cubic-bezier(0.2, 0.7, 0.25, 1) both; }
+@keyframes veilIn {
+  from { opacity: 0; transform: translateY(26px) scale(0.985); filter: blur(10px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+.veil-out { animation: veilOut 0.38s ease both; }
+@keyframes veilOut {
+  from { opacity: 1; }
+  to { opacity: 0; transform: translateY(-16px) scale(0.99); filter: blur(8px); }
+}
+
+/* ---------- typography & primitives ---------- */
+.hero { text-align: center; padding: 4vh 0 1vh; }
+.hero-eyebrow {
+  font-size: 0.78rem; letter-spacing: 0.42em; text-transform: uppercase;
+  color: var(--ink-dim); margin-bottom: 14px;
+}
+h1.logo {
+  font-size: clamp(2.6rem, 9vw, 4.2rem);
+  line-height: 0.98;
+  letter-spacing: 0.05em;
+  font-weight: 900;
+  background: linear-gradient(115deg, var(--rose-soft) 5%, var(--peach) 38%, var(--violet) 72%, var(--cyan) 105%);
+  background-size: 220% 220%;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: sheen 7s ease-in-out infinite;
+  filter: drop-shadow(0 0 26px rgba(255, 93, 143, 0.35));
+}
+@keyframes sheen { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+.tagline { margin-top: 16px; color: var(--ink-dim); font-size: 0.98rem; line-height: 1.6; }
+.tagline b { color: var(--ink); }
+
+.game-title {
+  font-size: 1.7rem; letter-spacing: 0.14em; font-weight: 900;
+  background: linear-gradient(110deg, var(--ink), var(--rose-soft), var(--ink));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+
+.card {
+  position: relative;
+  background: linear-gradient(160deg, rgba(255,255,255,0.075), rgba(255,255,255,0.035));
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 24px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+}
+.card.tilt { transition: transform 0.18s ease, border-color 0.18s ease; transform-style: preserve-3d; }
+.card.tilt::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(420px circle at var(--gx, 50%) var(--gy, 50%), rgba(255, 158, 187, 0.14), transparent 45%);
+  opacity: 0; transition: opacity 0.2s ease;
+}
+.card.tilt:hover::after { opacity: 1; }
+
+.center-card { text-align: center; display: flex; flex-direction: column; gap: 16px; align-items: center; }
+label { font-size: 0.8rem; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.14em; }
+.subtle { color: var(--ink-dim); font-size: 0.92rem; line-height: 1.6; }
+.big-emoji { font-size: 3.4rem; filter: drop-shadow(0 0 22px rgba(255, 158, 187, 0.5)); }
+.float-slow { animation: floatSlow 3.6s ease-in-out infinite; }
+@keyframes floatSlow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+button {
+  font-family: var(--font); cursor: pointer; border: none; border-radius: 999px;
+  padding: 15px 32px; font-size: 1.05rem; font-weight: 800; letter-spacing: 0.02em;
+  color: #2a0716;
+  background: linear-gradient(135deg, var(--rose), var(--peach));
+  box-shadow: 0 8px 28px rgba(255, 93, 143, 0.4), inset 0 1px 0 rgba(255,255,255,0.35);
+  transition: transform 0.14s ease, box-shadow 0.14s ease, filter 0.14s ease;
+}
+button:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 14px 36px rgba(255, 93, 143, 0.55), inset 0 1px 0 rgba(255,255,255,0.35); }
+button:active { transform: translateY(0) scale(0.97); }
+button:disabled { filter: grayscale(0.75) brightness(0.55); cursor: not-allowed; transform: none; }
+button.ghost {
+  background: rgba(255, 158, 187, 0.06); color: var(--rose-soft);
+  border: 1.5px solid rgba(255, 158, 187, 0.45);
+  box-shadow: none;
+}
+button.ghost:hover { border-color: var(--rose-soft); background: rgba(255, 158, 187, 0.12); }
+button.sm { padding: 8px 18px; font-size: 0.85rem; }
+
+input[type="text"], textarea {
+  width: 100%; font-family: var(--font);
+  font-size: 1.15rem; color: var(--ink);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1.5px solid var(--card-border);
+  border-radius: 16px; padding: 15px 17px; outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  resize: none;
+}
+input[type="text"]:focus, textarea:focus {
+  border-color: var(--rose);
+  box-shadow: 0 0 0 4px rgba(255, 93, 143, 0.15), 0 0 24px rgba(255, 93, 143, 0.25);
+}
+
+.hud { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--ink-dim); flex-wrap: wrap; }
+.hud .pill {
+  background: rgba(0, 0, 0, 0.35); border: 1px solid var(--card-border);
+  border-radius: 999px; padding: 7px 14px; font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em; font-weight: 700;
+  backdrop-filter: blur(8px);
+}
+.hud .pill.gold { color: var(--gold); border-color: rgba(255, 209, 102, 0.35); }
+.hud .pill.hot { color: var(--gold); border-color: rgba(255, 209, 102, 0.5); animation: pulse 0.8s infinite; }
+
+.room-badge {
+  align-self: center; font-size: 0.8rem; letter-spacing: 0.28em;
+  color: var(--rose-soft); border: 1px dashed rgba(255, 158, 187, 0.45);
+  border-radius: 999px; padding: 7px 18px;
+}
+.partner-status { text-align: center; font-size: 0.92rem; color: var(--mint); min-height: 1.3em; line-height: 1.5; }
+.partner-status.waiting { color: var(--ink-dim); animation: pulse 1.7s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+
+.score-line {
+  font-size: 3.4rem; font-weight: 900; color: var(--gold);
+  text-shadow: 0 0 34px rgba(255, 209, 102, 0.5);
+  font-variant-numeric: tabular-nums;
+}
+.score-line small { font-size: 1.4rem; }
+.score-line.sm { font-size: 1.5rem; color: var(--violet); text-shadow: 0 0 24px rgba(183, 140, 255, 0.5); }
+
+.topbar { display: flex; justify-content: space-between; align-items: center; }
+footer { margin-top: 8px; text-align: center; font-size: 0.74rem; color: rgba(201, 169, 187, 0.55); }
+
+.shake { animation: shake 0.4s ease; }
+@keyframes shake { 0%, 100% { transform: none; } 25% { transform: translateX(-7px); } 75% { transform: translateX(7px); } }
+
+/* ---------- home ---------- */
+#pair-row { display: flex; gap: 10px; margin-top: 12px; }
+#pair-row input {
+  text-transform: uppercase; letter-spacing: 0.4em; text-align: center;
+  font-size: 1.6rem; font-weight: 900;
+  text-shadow: 0 0 18px rgba(255, 158, 187, 0.6);
+}
+.pair-card p.subtle { margin-top: 12px; }
+
+.chapter-map { display: flex; flex-direction: column; gap: 11px; margin-top: 14px; }
+.chapter-row { display: flex; align-items: center; gap: 12px; font-size: 0.94rem; color: var(--ink-dim); }
+.chapter-row b { color: var(--ink); }
+.chapter-row .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.chapter-row .dot.done { background: var(--rose); box-shadow: 0 0 14px var(--rose); }
+.chapter-row .dot.now { background: var(--gold); box-shadow: 0 0 14px var(--gold); animation: pulse 1.6s infinite; }
+.chapter-row .dot.todo { background: rgba(255, 255, 255, 0.18); }
+
+#game-list { display: flex; flex-direction: column; gap: 15px; }
+.game-card {
+  display: flex; gap: 16px; align-items: center;
+  text-decoration: none; color: inherit; cursor: pointer;
+  animation: cardIn 0.6s cubic-bezier(0.2, 0.7, 0.25, 1) both;
+}
+@keyframes cardIn { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+.gc-orb {
+  position: relative; width: 64px; height: 64px; flex-shrink: 0;
+  display: grid; place-items: center;
+  background: radial-gradient(circle at 32% 28%, rgba(255, 158, 187, 0.35), rgba(255, 93, 143, 0.10) 60%, transparent);
+  border-radius: 50%;
+  border: 1px solid rgba(255, 158, 187, 0.3);
+}
+.gc-orb span { font-size: 1.9rem; filter: drop-shadow(0 0 12px rgba(255, 93, 143, 0.7)); }
+.gc-ring {
+  position: absolute; inset: -5px; border-radius: 50%;
+  border: 1px dashed rgba(255, 158, 187, 0.4);
+  animation: spin 14s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.gc-body { flex: 1; min-width: 0; }
+.gc-top { display: flex; align-items: baseline; gap: 10px; }
+.gc-top h3 { font-size: 1.12rem; letter-spacing: 0.03em; }
+.gc-mins { margin-left: auto; font-size: 0.72rem; color: var(--gold); white-space: nowrap; }
+.gc-body p { font-size: 0.85rem; color: var(--ink-dim); line-height: 1.5; margin-top: 4px; }
+.gc-meta { display: flex; gap: 8px; margin-top: 9px; }
+.gc-meta span {
+  font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 4px 10px; border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14); color: var(--ink-dim);
+}
+.gc-mode { color: var(--rose-soft) !important; border-color: rgba(255, 158, 187, 0.35) !important; }
+.gc-go { font-size: 1rem; color: var(--rose-soft); opacity: 0.7; transition: transform 0.15s ease, opacity 0.15s ease; }
+.game-card:hover .gc-go { transform: translateX(4px); opacity: 1; }
+
+.artifact-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.artifact {
+  aspect-ratio: 1; border-radius: 16px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  font-size: 1.7rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--card-border);
+  animation: cardIn 0.5s ease both;
+}
+.artifact span { font-size: 0.6rem; color: var(--ink-dim); text-align: center; padding: 0 5px; letter-spacing: 0.03em; line-height: 1.35; }
+
+/* ---------- signal decoder ---------- */
+.role-banner {
+  text-align: center; font-weight: 900; letter-spacing: 0.22em; font-size: 0.85rem;
+  padding: 10px; border-radius: 999px;
+  border: 1px solid var(--card-border);
+}
+.role-console { color: var(--mint); border-color: rgba(123, 241, 195, 0.4); background: rgba(123, 241, 195, 0.07); text-shadow: 0 0 16px rgba(123, 241, 195, 0.7); }
+.role-manual { color: var(--gold); border-color: rgba(255, 209, 102, 0.4); background: rgba(255, 209, 102, 0.06); text-shadow: 0 0 16px rgba(255, 209, 102, 0.7); }
+
+.seals { font-size: 1.25rem; letter-spacing: 0.2em; }
+.seal { transition: transform 0.3s ease; display: inline-block; }
+.seal.lit { transform: scale(1.25); filter: drop-shadow(0 0 10px var(--rose)); }
+
+.module-head { text-align: center; margin-bottom: 4px; }
+.module-label { font-size: 1.25rem; font-weight: 900; letter-spacing: 0.2em; color: var(--mint); text-shadow: 0 0 20px rgba(123, 241, 195, 0.6); }
+.module-hint { color: var(--ink-dim); font-size: 0.88rem; margin-top: 6px; }
+
+#sig-stage {
+  position: relative; height: min(58vh, 480px); border-radius: var(--radius);
+  border: 1px solid rgba(123, 241, 195, 0.2);
+  background: radial-gradient(80% 100% at 50% 110%, rgba(123, 241, 195, 0.08), rgba(0, 0, 0, 0.4));
+  overflow: hidden;
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.5), 0 18px 50px rgba(0, 0, 0, 0.35);
+}
+#sig-canvas { width: 100%; height: 100%; display: block; touch-action: manipulation; }
+
+.signal-strip { display: flex; justify-content: center; gap: 18px; font-size: 2rem; margin: 12px 0; }
+.signal-light { opacity: 0.25; filter: grayscale(1); transition: all 0.25s ease; }
+.signal-light.active { opacity: 1; filter: none; transform: scale(1.2); text-shadow: 0 0 24px var(--gold); }
+.console-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 8px; }
+.console-btn {
+  font-size: 1.9rem; padding: 20px 0; border-radius: 18px;
+  background: linear-gradient(160deg, rgba(123, 241, 195, 0.16), rgba(123, 241, 195, 0.05));
+  border: 1px solid rgba(123, 241, 195, 0.35); color: var(--ink);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.console-btn:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(123, 241, 195, 0.25); }
+
+.dial-wrap { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 12px 0; }
+.dial-face {
+  position: relative; width: 190px; height: 190px; border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255, 209, 102, 0.16), transparent 60%),
+    conic-gradient(from 200deg, rgba(255, 209, 102, 0.25), rgba(255, 93, 143, 0.18), rgba(123, 241, 195, 0.22), rgba(255, 209, 102, 0.25));
+  border: 2px solid rgba(255, 209, 102, 0.4);
+  box-shadow: 0 0 44px rgba(255, 209, 102, 0.2), inset 0 0 34px rgba(0, 0, 0, 0.55);
+  display: grid; place-items: center;
+}
+.dial-needle {
+  position: absolute; left: 50%; top: 50%; width: 3px; height: 76px;
+  background: linear-gradient(180deg, var(--gold), transparent);
+  transform-origin: 50% 100%;
+  transform: translate(-50%, -100%) rotate(-110deg);
+  transition: transform 0.18s cubic-bezier(0.3, 1.4, 0.5, 1);
+  border-radius: 3px;
+  box-shadow: 0 0 12px rgba(255, 209, 102, 0.8);
+}
+.dial-value {
+  font-size: 2.6rem; font-weight: 900; color: var(--gold);
+  text-shadow: 0 0 26px rgba(255, 209, 102, 0.7);
+  font-variant-numeric: tabular-nums;
+}
+.dial-row { display: flex; gap: 12px; }
+.dial-row button { padding: 12px 26px; font-size: 1.3rem; }
+
+.word-slots { display: flex; justify-content: center; gap: 9px; margin: 14px 0 18px; }
+.word-slots span {
+  width: 44px; height: 56px; border-radius: 12px;
+  display: grid; place-items: center;
+  font-size: 1.6rem; font-weight: 900; color: var(--mint);
+  background: rgba(0, 0, 0, 0.4);
+  border: 1.5px solid rgba(123, 241, 195, 0.4);
+  box-shadow: inset 0 0 18px rgba(123, 241, 195, 0.1);
+  text-shadow: 0 0 16px rgba(123, 241, 195, 0.8);
+}
+.keyboard { display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; }
+.keyboard button {
+  padding: 10px 0; font-size: 0.92rem; border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06); color: var(--ink);
+  border: 1px solid var(--card-border); box-shadow: none;
+}
+.keyboard button:hover { background: rgba(123, 241, 195, 0.15); transform: translateY(-2px); }
+.keyboard button.key-good { background: rgba(123, 241, 195, 0.3); border-color: var(--mint); }
+.keyboard button.key-bad { background: rgba(255, 107, 107, 0.25); border-color: var(--danger); }
+
+.manual-card { border-color: rgba(255, 209, 102, 0.3); }
+.manual-section h4 { color: var(--gold); letter-spacing: 0.18em; font-size: 0.9rem; margin-bottom: 10px; }
+.manual-section p { color: var(--ink-dim); font-size: 0.95rem; line-height: 1.65; margin-top: 10px; }
+.manual-section b { color: var(--ink); }
+.manual-figure {
+  font-size: 1.7rem; text-align: center; padding: 18px 10px; margin: 12px 0;
+  background: rgba(0, 0, 0, 0.35); border-radius: 14px;
+  border: 1px dashed rgba(255, 209, 102, 0.45);
+  letter-spacing: 0.14em;
+  text-shadow: 0 0 18px rgba(255, 209, 102, 0.6);
+}
+
+.gate-card { border-color: rgba(183, 140, 255, 0.35); box-shadow: 0 0 60px rgba(183, 140, 255, 0.15), 0 18px 50px rgba(0,0,0,0.35); }
+.gate-btns { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+
+.coda-card { border-color: rgba(255, 158, 187, 0.3); }
+.coda { font-size: 1.02rem; line-height: 1.7; color: var(--ink); font-style: italic; }
+.coda-prompt { margin-top: 12px; color: var(--rose-soft); font-size: 0.94rem; line-height: 1.55; }
+
+/* ---------- heart sync ---------- */
+.meter {
+  height: 12px; border-radius: 999px; overflow: hidden;
+  background: rgba(0, 0, 0, 0.4); border: 1px solid var(--card-border);
+}
+.meter-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--rose), var(--peach), var(--gold));
+  border-radius: 999px;
+  box-shadow: 0 0 18px rgba(255, 93, 143, 0.8);
+  transition: width 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.2);
+}
+.hs-canvas-wrap { position: relative; display: flex; justify-content: center; }
+#hs-canvas {
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 93, 143, 0.25);
+  background: rgba(6, 2, 8, 0.55);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4), inset 0 0 50px rgba(255, 93, 143, 0.05);
+  touch-action: manipulation;
+  cursor: pointer;
+}
+#hs-feedback {
+  position: absolute; left: 50%; top: 42%;
+  transform: translate(-50%, -50%);
+  font-size: 1.5rem; font-weight: 900; letter-spacing: 0.06em;
+  opacity: 0; pointer-events: none;
+  text-shadow: 0 0 20px currentColor;
+}
+#hs-feedback.countdown { font-size: 3.2rem; }
+#hs-feedback.show { animation: fbPop 0.55s ease both; }
+@keyframes fbPop {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  25% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+  100% { opacity: 0; transform: translate(-50%, -90%) scale(1); }
+}
+
+/* ---------- mirror round ---------- */
+.mirror-meter { display: flex; justify-content: center; gap: 10px; }
+.mirror-dot {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--card-border);
+  transition: all 0.4s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.mirror-dot.lit {
+  background: radial-gradient(circle at 35% 30%, #fff, var(--violet));
+  box-shadow: 0 0 18px var(--violet), 0 0 44px rgba(183, 140, 255, 0.5);
+  transform: scale(1.25);
+}
+.q-card { text-align: center; display: flex; flex-direction: column; gap: 15px; }
+.q-text { font-size: 1.18rem; line-height: 1.55; font-weight: 600; }
+#mr-options { display: flex; flex-direction: column; gap: 10px; }
+.opt-btn {
+  display: flex; align-items: center; gap: 12px;
+  padding: 15px 18px; border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1.5px solid var(--card-border);
+  color: var(--ink); font-size: 0.98rem; font-weight: 600;
+  text-align: left; box-shadow: none;
+  animation: cardIn 0.4s ease both;
+}
+.opt-btn .opt-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.2); transition: all 0.2s ease;
+}
+.opt-btn:hover { border-color: var(--violet); background: rgba(183, 140, 255, 0.1); transform: translateY(-2px); }
+.opt-btn:hover .opt-dot { background: var(--violet); box-shadow: 0 0 12px var(--violet); }
+.opt-btn.guess:hover { border-color: var(--rose); background: rgba(255, 93, 143, 0.1); }
+.opt-btn.guess:hover .opt-dot { background: var(--rose); box-shadow: 0 0 12px var(--rose); }
+.opt-btn.opt-picked { border-color: var(--gold); background: rgba(255, 209, 102, 0.12); }
+
+.flip-row { display: flex; gap: 14px; justify-content: center; }
+.flip-wrap { perspective: 1100px; flex: 1; max-width: 280px; }
+.flip-inner {
+  position: relative; width: 100%; aspect-ratio: 3 / 4;
+  transition: transform 0.85s cubic-bezier(0.2, 0.8, 0.3, 1.08);
+  transform-style: preserve-3d;
+}
+.flipped { transform: rotateY(180deg); }
+.flip-face {
+  position: absolute; inset: 0;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  border-radius: 20px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  padding: 18px; text-align: center;
+}
+.flip-front {
+  background: linear-gradient(150deg, rgba(183, 140, 255, 0.25), rgba(255, 93, 143, 0.18));
+  border: 1.5px solid rgba(183, 140, 255, 0.45);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.4), inset 0 0 40px rgba(183, 140, 255, 0.12);
+  font-size: 3rem; color: rgba(255, 255, 255, 0.75);
+}
+.flip-front small { font-size: 0.78rem; color: var(--ink-dim); letter-spacing: 0.08em; }
+.flip-back {
+  transform: rotateY(180deg);
+  background: linear-gradient(150deg, rgba(255, 158, 187, 0.22), rgba(255, 209, 102, 0.14));
+  border: 1.5px solid rgba(255, 158, 187, 0.5);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.4), 0 0 44px rgba(255, 93, 143, 0.18);
+}
+.flip-back p { font-size: 0.98rem; line-height: 1.55; font-weight: 600; }
+
+.verdict { font-size: 1.05rem; font-weight: 800; letter-spacing: 0.04em; }
+.verdict.match { color: var(--mint); text-shadow: 0 0 18px rgba(123, 241, 195, 0.6); }
+.verdict.spark { color: var(--violet); text-shadow: 0 0 18px rgba(183, 140, 255, 0.6); }
+
+.draw-timer {
+  font-size: 2.6rem; font-weight: 900; color: var(--gold);
+  text-shadow: 0 0 26px rgba(255, 209, 102, 0.55);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 480px) {
+  .view { padding: 20px 13px 60px; }
+  .flip-row { gap: 10px; }
+  .console-grid { grid-template-columns: repeat(2, 1fr); }
+  .keyboard { grid-template-columns: repeat(7, 1fr); }
+  .artifact-grid { grid-template-columns: repeat(3, 1fr); }
+  .gate-btns { flex-direction: column; width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="fx-layer"></div>
+<div id="vignette"></div>
+
+<main id="app">
+
+  <!-- ================= HOME ================= -->
+  <section id="view-home" class="view hidden">
+    <header class="hero">
+      <div class="hero-eyebrow">A two-player night sky</div>
+      <h1 class="logo">DATE&nbsp;NIGHT<br/>ARCADE</h1>
+      <p class="tagline">Two players. One screen each. Real conversations.<br/>
+      <b>This one file is the whole arcade</b> — open it in <b>two tabs</b>, pick a game in both, and play.</p>
+    </header>
+
+    <div class="card pair-card">
+      <label>Pair up · one code, two hearts</label>
+      <div id="pair-row">
+        <input id="room-input" type="text" maxlength="4" placeholder="••••" autocomplete="off" spellcheck="false"/>
+        <button id="random-room" class="ghost" title="New room code">🎲</button>
+      </div>
+      <p class="subtle">Both of you enter the <em>same 4-letter code</em>, then open the same game.<br/>Room: <b class="echo-room" id="room-echo">—</b></p>
+    </div>
+
+    <div class="card">
+      <label>Tonight's journey</label>
+      <div class="chapter-map">
+        <div class="chapter-row"><span class="dot done"></span> Chapter 1 · <b>Icebreaker</b> — play, laugh, sync up</div>
+        <div class="chapter-row"><span class="dot now"></span> Chapter 2 · <b>Discovery</b> — what do you really know?</div>
+        <div class="chapter-row"><span class="dot todo"></span> Chapter 3 · <b>Vulnerability</b> — 🔒 unlocks after tonight</div>
+      </div>
+    </div>
+
+    <div id="game-list"></div>
+
+    <div class="card">
+      <label>📖 Your scrapbook</label>
+      <div id="scrapbook" style="margin-top:14px;"></div>
+    </div>
+
+    <footer>Single-file build · saves this page with Ctrl/Cmd+S · pairing runs between tabs on this device</footer>
+  </section>
+
+  <!-- ================= SIGNAL DECODER ================= -->
+  <section id="view-signal" class="view hidden">
+    <div class="topbar">
+      <button class="btn-home ghost sm">← arcade</button>
+      <span class="room-badge echo-room">—</span>
+    </div>
+
+    <div id="sig-lobby" class="inner-screen">
+      <div class="card center-card">
+        <div class="big-emoji float-slow">🛰️</div>
+        <h2 class="game-title">SIGNAL DECODER</h2>
+        <p class="subtle">A transmission meant for the two of you is buried in static.<br/>
+        One of you flies the console. The other holds the manual.<br/><b>Neither screen shows both.</b></p>
+        <p class="room-badge" id="sig-lobby-room">ROOM —</p>
+        <p class="partner-status waiting" id="sig-lobby-status"></p>
+        <button id="btn-sig-start" disabled>Begin transmission ⚡</button>
+      </div>
+    </div>
+
+    <div id="sig-role" class="inner-screen hidden">
+      <div class="card center-card">
+        <div class="big-emoji" id="sig-role-emoji">🎛️</div>
+        <h2 class="game-title" id="sig-role-title"></h2>
+        <p class="subtle" id="sig-role-desc"></p>
+        <p class="partner-status waiting" id="sig-role-status">Waking the console…</p>
+      </div>
+    </div>
+
+    <div id="sig-game" class="inner-screen hidden">
+      <div class="hud">
+        <span class="pill" id="sig-hud-round">ROUND 1 / 4</span>
+        <span class="seals"><span class="seal">🔒</span><span class="seal">🔒</span></span>
+        <span class="pill" id="sig-hud-timer">1:00</span>
+        <span class="pill gold" id="sig-hud-score">0 PTS</span>
+      </div>
+      <div class="role-banner role-console" id="sig-banner">🎛️ CONSOLE OPERATOR</div>
+
+      <div id="sig-view-console">
+        <div class="module-head">
+          <div class="module-label" id="sig-module-label"></div>
+          <div class="module-hint" id="sig-module-hint"></div>
+        </div>
+        <div id="sig-stage" class="hidden"><canvas id="sig-canvas"></canvas></div>
+        <div id="sig-module-dom"></div>
+      </div>
+
+      <div id="sig-view-manual" class="hidden">
+        <div class="card manual-card">
+          <label>Field manual · round <span id="sig-manual-round">1</span></label>
+          <div id="sig-manual-body"></div>
+          <p class="subtle" style="margin-top:14px;">Describe, don't show. Their hands are the only way in.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="sig-gate" class="inner-screen hidden">
+      <div class="card center-card gate-card">
+        <div class="big-emoji">🌊</div>
+        <h2 class="game-title">THE LAST TRANSMISSION</h2>
+        <p class="subtle">…goes deeper than static. Both of you choose — within 5 seconds.<br/>It only opens if <b>both</b> hearts say yes.</p>
+        <div class="gate-btns">
+          <button id="sig-gate-deeper">Go deeper 🌊</button>
+          <button id="sig-gate-stay" class="ghost">Stay here 🌙</button>
+        </div>
+        <p class="partner-status" id="sig-gate-status"></p>
+      </div>
+    </div>
+
+    <div id="sig-end" class="inner-screen hidden">
+      <div class="card center-card">
+        <div class="big-emoji">📡</div>
+        <div class="score-line"><span id="sig-end-score">0</span><small> pts</small></div>
+        <p class="subtle" id="sig-end-verdict"></p>
+      </div>
+      <div class="card coda-card">
+        <p class="coda" id="sig-coda-text"></p>
+        <p class="coda-prompt" id="sig-coda-prompt"></p>
+      </div>
+      <button class="btn-home">💕 Back to the arcade</button>
+    </div>
+  </section>
+
+  <!-- ================= HEART SYNC ================= -->
+  <section id="view-heart" class="view hidden">
+    <div class="topbar">
+      <button class="btn-home ghost sm">← arcade</button>
+      <span class="room-badge echo-room">—</span>
+    </div>
+
+    <div id="hs-lobby" class="inner-screen">
+      <div class="card center-card">
+        <div class="big-emoji float-slow">💓</div>
+        <h2 class="game-title">HEART SYNC</h2>
+        <p class="subtle">Hearts fall down two lanes — you only control yours.<br/>
+        Tap on the beat. Tap <b>together</b>, and one shared heart catches fire.</p>
+        <p class="room-badge" id="hs-lobby-room">ROOM —</p>
+        <p class="partner-status waiting" id="hs-lobby-status"></p>
+        <button id="btn-hs-start" disabled>Find the rhythm 🎵</button>
+      </div>
+    </div>
+
+    <div id="hs-game" class="inner-screen hidden">
+      <div class="hud">
+        <span class="pill" id="hs-hud-beat">BEAT 0 / 56</span>
+        <span class="pill" id="hs-hud-syncs">💞 0 syncs</span>
+        <span class="pill" id="hs-hud-streak">🔥 0</span>
+      </div>
+      <div class="meter"><div class="meter-fill" id="hs-meter-fill"></div></div>
+      <div class="hs-canvas-wrap">
+        <canvas id="hs-canvas"></canvas>
+        <div id="hs-feedback"></div>
+      </div>
+      <p class="subtle" id="hs-note"></p>
+    </div>
+
+    <div id="hs-end" class="inner-screen hidden">
+      <div class="card center-card">
+        <div class="big-emoji" id="hs-end-emoji">💗</div>
+        <h2 class="game-title" id="hs-end-title">HEARTS ALIGNED</h2>
+        <div class="score-line" id="hs-end-score">0%</div>
+        <p class="subtle" id="hs-end-verdict"></p>
+      </div>
+      <div class="card coda-card">
+        <p class="coda" id="hs-coda-text"></p>
+        <p class="coda-prompt" id="hs-coda-prompt"></p>
+      </div>
+      <button class="btn-home">💕 Back to the arcade</button>
+    </div>
+  </section>
+
+  <!-- ================= MIRROR ROUND ================= -->
+  <section id="view-mirror" class="view hidden">
+    <div class="topbar">
+      <button class="btn-home ghost sm">← arcade</button>
+      <span class="room-badge echo-room">—</span>
+    </div>
+
+    <div id="mr-lobby" class="inner-screen">
+      <div class="card center-card">
+        <div class="big-emoji float-slow">🪞</div>
+        <h2 class="game-title">MIRROR ROUND</h2>
+        <p class="subtle">Answer secretly. Guess your partner.<br/>Both cards flip at the same moment.<br/>
+        Mirrors for matches, ✨ sparks for everything else — sparks are the point.</p>
+        <p class="room-badge" id="mr-lobby-room">ROOM —</p>
+        <p class="partner-status waiting" id="mr-lobby-status"></p>
+        <button id="btn-mr-start" disabled>Hold up the mirror 🪞</button>
+      </div>
+    </div>
+
+    <div id="mr-game" class="inner-screen hidden">
+      <div class="hud">
+        <span class="pill" id="mr-hud-round">QUESTION 1 / 4</span>
+        <span class="pill gold" id="mr-hud-phase">ANSWER</span>
+        <span class="pill" id="mr-hud-mirrors">🪞 0</span>
+      </div>
+      <div class="mirror-meter" id="mr-meter">
+        <span class="mirror-dot"></span><span class="mirror-dot"></span><span class="mirror-dot"></span><span class="mirror-dot"></span>
+      </div>
+      <div class="card q-card">
+        <div class="big-emoji" id="mr-q-emoji">🍳</div>
+        <p class="q-text" id="mr-q-text"></p>
+        <div id="mr-options"></div>
+        <p class="partner-status" id="mr-status"></p>
+      </div>
+    </div>
+
+    <div id="mr-reveal" class="inner-screen hidden">
+      <div class="flip-row">
+        <div class="flip-wrap">
+          <div class="flip-inner" id="mr-flip-mine">
+            <div class="flip-face flip-front"><span>?</span><small id="mr-rv-mine-who"></small></div>
+            <div class="flip-face flip-back"><p id="mr-rv-mine"></p></div>
+          </div>
+        </div>
+        <div class="flip-wrap">
+          <div class="flip-inner" id="mr-flip-theirs">
+            <div class="flip-face flip-front"><span>?</span><small id="mr-rv-theirs-who"></small></div>
+            <div class="flip-face flip-back"><p id="mr-rv-theirs"></p></div>
+          </div>
+        </div>
+      </div>
+      <div class="card center-card">
+        <p class="verdict" id="mr-rv-verdict"></p>
+        <p class="subtle" id="mr-rv-sub"></p>
+        <button id="btn-mr-next">Next question →</button>
+      </div>
+    </div>
+
+    <div id="mr-draw" class="inner-screen hidden">
+      <div class="card center-card">
+        <div class="big-emoji">⚡</div>
+        <h2 class="game-title">THE SIMULTANEOUS DRAW</h2>
+        <p class="subtle">Sixty seconds. One thing you want them to know.<br/>Both cards seal in secret and reveal at the same moment. No score. Ever.</p>
+        <div class="draw-timer" id="mr-draw-timer">1:00</div>
+        <textarea id="mr-draw-input" rows="3" maxlength="280" placeholder="One thing I want you to know…"></textarea>
+        <button id="btn-mr-seal">Seal it 💌</button>
+        <p class="partner-status" id="mr-draw-status"></p>
+      </div>
+    </div>
+
+    <div id="mr-end" class="inner-screen hidden">
+      <div class="flip-row">
+        <div class="flip-wrap">
+          <div class="flip-inner" id="mr-flip-dc-mine">
+            <div class="flip-face flip-front"><span>💌</span><small id="mr-dc-mine-who"></small></div>
+            <div class="flip-face flip-back"><p id="mr-dc-mine"></p></div>
+          </div>
+        </div>
+        <div class="flip-wrap">
+          <div class="flip-inner" id="mr-flip-dc-theirs">
+            <div class="flip-face flip-front"><span>💌</span><small id="mr-dc-theirs-who"></small></div>
+            <div class="flip-face flip-back"><p id="mr-dc-theirs"></p></div>
+          </div>
+        </div>
+      </div>
+      <div class="card center-card">
+        <p class="score-line sm" id="mr-end-mirrors"></p>
+        <p class="subtle" id="mr-end-verdict"></p>
+      </div>
+      <button class="btn-home">💕 Back to the arcade</button>
+    </div>
+  </section>
+
+</main>
+<!-- Three.js r120 from CDN: the 3D universe. If offline, a 2D starfield takes over. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r120/three.min.js"></script>
+<script>
+/* ============================================================
+   DATE NIGHT ARCADE — single-file edition
+   A hyper-visual two-player date-night game collection.
+   One .html file. No server. No build. Just open it.
+   ============================================================ */
+"use strict";
+
+/* ---------------- utilities ---------------- */
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const TAU = Math.PI * 2;
+
+function esc(s) {
+  const d = document.createElement("div");
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+function fmtTime(sec) {
+  const m = Math.floor(sec / 60), s = Math.max(0, Math.floor(sec % 60));
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+function relTime(iso) {
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs} hr ago`;
+  return new Date(iso).toLocaleDateString();
+}
+function seededShuffle(arr, seed) {
+  const a = [...arr];
+  let s = seed || 1;
+  for (let i = a.length - 1; i > 0; i--) {
+    s = (s * 16807) % 2147483647;
+    const j = s % (i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* ---------------- tiny synth (no assets) ---------------- */
+let AC = null;
+function ensureAudio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) { /* no audio */ } }
+  if (AC && AC.state === "suspended") AC.resume();
+}
+function tone(freq, dur = 0.12, gain = 0.10, type = "sine", when = 0) {
+  if (!AC) return;
+  const t0 = AC.currentTime + when;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t0);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(gain, t0 + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(AC.destination);
+  o.start(t0); o.stop(t0 + dur + 0.02);
+}
+const SFX = {
+  tap: () => tone(660, 0.06, 0.06, "triangle"),
+  good: () => { tone(880, 0.10, 0.11); tone(1320, 0.10, 0.07, "sine", 0.05); },
+  bad: () => tone(170, 0.18, 0.09, "sawtooth"),
+  sync: () => { tone(1046, 0.12, 0.12); tone(1318, 0.16, 0.10, "sine", 0.07); tone(1568, 0.2, 0.08, "sine", 0.14); },
+  reveal: () => { tone(523, 0.3, 0.08); tone(784, 0.35, 0.08, "sine", 0.12); },
+  tick: () => tone(660, 0.05, 0.06, "triangle"),
+  win: () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.35, 0.09, "sine", i * 0.12)); },
+  gate: () => { tone(392, 0.4, 0.08, "sine"); tone(587, 0.5, 0.08, "sine", 0.2); }
+};
+
+/* ============================================================
+   PAIRING — room codes, presence, lock-step, scrapbook.
+   Two tabs / windows of THIS file, same 4-letter code.
+   ============================================================ */
+const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+function makeRoomCode() {
+  let code = "";
+  for (let i = 0; i < 4; i++) code += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+  return code;
+}
+function getPlayerName() {
+  let name = sessionStorage.getItem("dn:name");
+  if (!name) {
+    name = (prompt("Your name, love?", "") || "").trim() || (Math.random() < 0.5 ? "Alex" : "Sam");
+    sessionStorage.setItem("dn:name", name);
+  }
+  return name;
+}
+function getRoom() { return localStorage.getItem("dn:room") || "DEMO"; }
+
+function openChannel(room, game) {
+  const channelName = `dn:${room}:${game}`;
+  const bc = "BroadcastChannel" in window ? new BroadcastChannel(channelName) : null;
+  const storageKey = `${channelName}:relay`;
+  const selfId = Math.random().toString(36).slice(2);
+  const listeners = new Set();
+  // Dedup BroadcastChannel vs storage-relay double delivery. Entries expire
+  // quickly: the storage relay value stays behind after later writes, and
+  // delayed readers must still accept it — only near-simultaneous duplicate
+  // delivery of the same message should be collapsed.
+  const seen = new Map(); // mid -> first-seen timestamp
+  function markSeen(id) {
+    if (!id) return false;
+    const now = Date.now();
+    if (seen.has(id) && now - seen.get(id) < 1500) return true;
+    seen.set(id, now);
+    if (seen.size > 120) {
+      for (const [k, t0] of seen) { if (now - t0 > 3000) seen.delete(k); }
+    }
+    return false;
+  }
+  function receive(msg) {
+    try {
+      if (!msg || msg.__from === selfId) return;
+      if (markSeen(msg.__mid)) return;
+      listeners.forEach((fn) => fn(msg));
+    } catch (_) { /* ignore malformed */ }
+  }
+  const onStorage = (e) => {
+    if (e.key !== storageKey || !e.newValue) return;
+    try { receive(JSON.parse(e.newValue)); } catch (_) { /* ignore malformed */ }
+  };
+  window.addEventListener("storage", onStorage);
+  if (bc) bc.onmessage = (e) => receive(e.data);
+  return {
+    __room: room, __game: game,
+    on(fn) { listeners.add(fn); },
+    send(event, payload = {}) {
+      const msg = { __from: selfId, __mid: `${selfId}:${Math.random().toString(36).slice(2)}`, event, payload, t: Date.now() };
+      try { if (bc) bc.postMessage(msg); } catch (_) { /* closed */ }
+      try { localStorage.setItem(storageKey, JSON.stringify(msg)); } catch (_) { /* quota */ }
+      listeners.forEach((fn) => fn({ ...msg, __local: true }));
+    },
+    close() { window.removeEventListener("storage", onStorage); if (bc) bc.close(); }
+  };
+}
+function joinRoom(room, game) {
+  const chan = openChannel(room, game);
+  const name = getPlayerName();
+  const partnerListeners = new Set();
+  chan.on((msg) => {
+    if (msg.__local) return;
+    if (msg.event === "hello") { chan.send("welcome", { name }); partnerListeners.forEach((fn) => fn(msg.payload.name)); }
+    if (msg.event === "welcome") partnerListeners.forEach((fn) => fn(msg.payload.name));
+  });
+  return { chan, myName: name, announce() { chan.send("hello", { name }); }, onPartner(fn) { partnerListeners.add(fn); } };
+}
+function lockStep(chan, key, myValue) {
+  return new Promise((resolve) => {
+    const chanName = `dn:${chan.__room}:${chan.__game}`;
+    const storeKey = `${chanName}:pending:${key}`;
+    const mine = myValue;
+    let theirs, done = false, retries = 0;
+    const readStore = () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem(storeKey)) || {};
+        if (stored.theirs !== undefined && theirs === undefined) theirs = stored.theirs;
+      } catch (_) { /* ignore */ }
+    };
+    const tryResolve = () => {
+      if (done || theirs === undefined) return;
+      done = true;
+      clearInterval(retryTimer);
+      try { localStorage.removeItem(storeKey); } catch (_) { /* ignore */ }
+      chan.send(`stepAck:${key}`, {});
+      resolve({ mine, theirs });
+    };
+    chan.on((msg) => {
+      if (msg.event === `step:${key}` && !msg.__local) {
+        theirs = msg.payload.value;
+        try { localStorage.setItem(storeKey, JSON.stringify({ theirs })); } catch (_) { /* ignore */ }
+        tryResolve();
+      }
+      if (msg.event === `stepAck:${key}` && !msg.__local) clearInterval(retryTimer);
+    });
+    readStore();
+    chan.send(`step:${key}`, { value: mine });
+    tryResolve();
+    const retryTimer = setInterval(() => {
+      if (done || retries++ > 90) { clearInterval(retryTimer); return; }
+      readStore(); tryResolve();
+      if (!done) chan.send(`step:${key}`, { value: mine });
+    }, 110);
+  });
+}
+const SCRAPBOOK_KEY = "dn:scrapbook";
+function getScrapbook() { try { return JSON.parse(localStorage.getItem(SCRAPBOOK_KEY)) || []; } catch (_) { return []; } }
+function addArtifact(a) {
+  const book = getScrapbook();
+  book.push({ ...a, at: new Date().toISOString() });
+  try { localStorage.setItem(SCRAPBOOK_KEY, JSON.stringify(book)); } catch (_) { /* quota */ }
+  return book;
+}
+/* ============================================================
+   THE WORLD — a 3D night-sky you fly through (Three.js when
+   available, graceful 2D canvas fallback when offline / WebGL
+   is unavailable). Themes retint the whole universe per game.
+   Also: fullscreen DOM confetti bursts + floating feedback.
+   ============================================================ */
+const THEMES = {
+  home:   { nebula: ["#2b1030", "#160a24", "#31112b"], stars: ["#ffd9e8", "#c9b6ff", "#9be7ff"], accent: "#ff5d8f", fog: 0.0016 },
+  signal: { nebula: ["#0d1f2d", "#0a1420", "#14241c"], stars: ["#9be7ff", "#7bf1c3", "#fdf3f6"], accent: "#7bf1c3", fog: 0.0022 },
+  heart:  { nebula: ["#33101f", "#220a2e", "#160a14"], stars: ["#ff9ebb", "#ffd166", "#b78cff"], accent: "#ff5d8f", fog: 0.0014 },
+  mirror: { nebula: ["#1a1033", "#24102e", "#0f1b33"], stars: ["#b78cff", "#ff9ebb", "#9be7ff"], accent: "#b78cff", fog: 0.0018 }
+};
+
+const FX = (() => {
+  const layer = $("fx-layer");
+
+  function confetti({ count = 90, hearts = true, spread = 1, origin = null, power = 1 } = {}) {
+    const cx = origin ? origin.x : innerWidth / 2;
+    const cy = origin ? origin.y : innerHeight * 0.35;
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement("i");
+      p.className = "fxp";
+      const heart = hearts && Math.random() < 0.55;
+      p.textContent = heart ? ["💗", "💞", "✨", "💓"][Math.floor(Math.random() * 4)] : "";
+      const size = heart ? 13 + Math.random() * 15 : 4 + Math.random() * 5;
+      if (!heart) {
+        p.style.background = ["#ff5d8f", "#ffd166", "#7bf1c3", "#b78cff", "#ff9ebb"][Math.floor(Math.random() * 5)];
+        p.style.borderRadius = Math.random() < 0.5 ? "50%" : "2px";
+      }
+      p.style.fontSize = size + "px";
+      p.style.width = p.style.height = size + "px";
+      const a = Math.random() * TAU;
+      const sp = (140 + Math.random() * 420) * power;
+      const vx = Math.cos(a) * sp * spread, vy = Math.sin(a) * sp * 0.7 - 320 * power;
+      const rot = (Math.random() - 0.5) * 720;
+      p.animate([
+        { transform: `translate(${cx}px, ${cy}px) rotate(0deg) scale(1)`, opacity: 1 },
+        { transform: `translate(${cx + vx * 0.9}px, ${cy + vy * 0.9 + 560}px) rotate(${rot}deg) scale(${0.4 + Math.random() * 0.6})`, opacity: 0 }
+      ], { duration: 1300 + Math.random() * 1300, easing: "cubic-bezier(.15,.6,.35,1)" }).onfinish = () => p.remove();
+      layer.appendChild(p);
+    }
+  }
+
+  function floatText(text, x, y, cls = "") {
+    const el = document.createElement("div");
+    el.className = "fxfloat " + cls;
+    el.textContent = text;
+    el.style.left = x + "px"; el.style.top = y + "px";
+    layer.appendChild(el);
+    setTimeout(() => el.remove(), 1400);
+  }
+
+  function flash(color = "rgba(255,93,143,0.16)") {
+    const el = document.createElement("div");
+    el.className = "fxflash";
+    el.style.background = color;
+    layer.appendChild(el);
+    setTimeout(() => el.remove(), 700);
+  }
+
+  function ripple(x, y, color = "rgba(255,158,187,0.85)") {
+    const el = document.createElement("div");
+    el.className = "fxripple";
+    el.style.left = x + "px"; el.style.top = y + "px";
+    el.style.borderColor = color;
+    layer.appendChild(el);
+    setTimeout(() => el.remove(), 800);
+  }
+
+  /* ---------- 2D fallback universe ---------- */
+  function start2D(canvas, themeRef) {
+    const ctx = canvas.getContext("2d");
+    let stars = [], nebs = [], shooting = null, t = 0;
+    function resize() {
+      canvas.width = innerWidth * devicePixelRatio;
+      canvas.height = innerHeight * devicePixelRatio;
+      stars = Array.from({ length: 340 }, () => ({
+        x: Math.random(), y: Math.random(), z: Math.random(),
+        s: 0.4 + Math.random() * 1.8, tw: Math.random() * TAU
+      }));
+      nebs = Array.from({ length: 6 }, (_, i) => ({
+        x: Math.random(), y: Math.random(), r: 0.28 + Math.random() * 0.3,
+        c: i % 2, dx: (Math.random() - 0.5) * 0.006, dy: (Math.random() - 0.5) * 0.004
+      }));
+    }
+    resize();
+    window.addEventListener("resize", resize);
+    let speedBoost = 0;
+    (function frame() {
+      requestAnimationFrame(frame);
+      t += 0.016;
+      speedBoost *= 0.97;
+      const W = canvas.width, H = canvas.height, th = themeRef();
+      ctx.fillStyle = th.nebula[2];
+      ctx.fillRect(0, 0, W, H);
+      nebs.forEach((n) => {
+        n.x += n.dx * 0.016; n.y += n.dy * 0.016;
+        if (n.x < -0.3) n.x = 1.3; if (n.x > 1.3) n.x = -0.3;
+        if (n.y < -0.3) n.y = 1.3; if (n.y > 1.3) n.y = -0.3;
+        const g = ctx.createRadialGradient(n.x * W, n.y * H, 0, n.x * W, n.y * H, n.r * W);
+        g.addColorStop(0, th.nebula[n.c] + "cc");
+        g.addColorStop(1, "transparent");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, W, H);
+      });
+      stars.forEach((s) => {
+        s.y += (0.00012 + s.z * 0.0004) * (1 + speedBoost * 6);
+        if (s.y > 1) s.y = 0;
+        const a = 0.35 + 0.65 * Math.abs(Math.sin(t * (0.6 + s.z) + s.tw));
+        ctx.globalAlpha = a;
+        ctx.fillStyle = th.stars[Math.floor(s.z * th.stars.length) % th.stars.length];
+        const px = s.x * W, py = s.y * H, r = s.s * devicePixelRatio * (1 + speedBoost * 0.4);
+        ctx.fillRect(px, py, r, r * (1 + speedBoost * 14));
+      });
+      ctx.globalAlpha = 1;
+      if (!shooting && Math.random() < 0.0035) shooting = { x: Math.random() * W, y: Math.random() * H * 0.4, vx: 9 + Math.random() * 7, vy: 3 + Math.random() * 3, life: 1 };
+      if (shooting) {
+        shooting.x += shooting.vx * devicePixelRatio; shooting.y += shooting.vy * devicePixelRatio; shooting.life -= 0.02;
+        const g = ctx.createLinearGradient(shooting.x, shooting.y, shooting.x - shooting.vx * 9, shooting.y - shooting.vy * 9);
+        g.addColorStop(0, `rgba(255,255,255,${shooting.life})`);
+        g.addColorStop(1, "transparent");
+        ctx.strokeStyle = g; ctx.lineWidth = 2 * devicePixelRatio;
+        ctx.beginPath(); ctx.moveTo(shooting.x, shooting.y);
+        ctx.lineTo(shooting.x - shooting.vx * 9, shooting.y - shooting.vy * 9); ctx.stroke();
+        if (shooting.life <= 0) shooting = null;
+      }
+    })();
+    return { boost(v) { speedBoost = Math.max(speedBoost, v); }, setTheme() { /* colors read live */ } };
+  }
+
+  /* ---------- 3D universe (Three.js) ---------- */
+  function start3D(canvas, themeRef) {
+    const THREE = window.THREE;
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 4000);
+    camera.position.z = 60;
+
+    function makeGlowTexture(inner, outer) {
+      const c = document.createElement("canvas");
+      c.width = c.height = 128;
+      const g = c.getContext("2d");
+      const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+      grad.addColorStop(0, inner);
+      grad.addColorStop(0.35, outer);
+      grad.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = grad;
+      g.fillRect(0, 0, 128, 128);
+      return new THREE.CanvasTexture(c);
+    }
+
+    // Starfield: 3 concentric point clouds for parallax depth
+    const starGroup = new THREE.Group();
+    const starMats = [];
+    [[2600, 900, 2.1, 0xffffff], [1800, 520, 3.2, 0xffd9e8], [900, 260, 4.6, 0xc9b6ff]].forEach(([count, range, size, color]) => {
+      const pos = new Float32Array(count * 3);
+      for (let i = 0; i < count; i++) {
+        pos[i * 3] = (Math.random() - 0.5) * range * 2;
+        pos[i * 3 + 1] = (Math.random() - 0.5) * range * 2;
+        pos[i * 3 + 2] = (Math.random() - 0.5) * range * 2;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+      const mat = new THREE.PointsMaterial({
+        size, color, map: makeGlowTexture("rgba(255,255,255,1)", "rgba(255,255,255,0.25)"),
+        transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true
+      });
+      starMats.push(mat);
+      starGroup.add(new THREE.Points(geo, mat));
+    });
+    scene.add(starGroup);
+
+    // Nebula sprites
+    const nebMats = [];
+    const nebulae = new THREE.Group();
+    for (let i = 0; i < 9; i++) {
+      const mat = new THREE.SpriteMaterial({
+        map: makeGlowTexture("rgba(255,255,255,0.85)", "rgba(255,255,255,0.28)"),
+        color: 0xffffff, transparent: true, opacity: 0.16 + Math.random() * 0.12,
+        depthWrite: false, blending: THREE.AdditiveBlending
+      });
+      const sp = new THREE.Sprite(mat);
+      const r = 500 + Math.random() * 900;
+      const th = Math.random() * TAU;
+      sp.position.set(Math.cos(th) * r, (Math.random() - 0.5) * 700, Math.sin(th) * r - 300);
+      const s = 500 + Math.random() * 900;
+      sp.scale.set(s, s, 1);
+      nebMats.push(mat);
+      nebulae.add(sp);
+    }
+    scene.add(nebulae);
+
+    // Drifting dust motes close to camera
+    const dustCount = 260;
+    const dustPos = new Float32Array(dustCount * 3);
+    const dustVel = [];
+    for (let i = 0; i < dustCount; i++) {
+      dustPos[i * 3] = (Math.random() - 0.5) * 240;
+      dustPos[i * 3 + 1] = (Math.random() - 0.5) * 160;
+      dustPos[i * 3 + 2] = (Math.random() - 0.5) * 160;
+      dustVel.push((Math.random() - 0.5) * 0.02);
+    }
+    const dustGeo = new THREE.BufferGeometry();
+    dustGeo.setAttribute("position", new THREE.BufferAttribute(dustPos, 3));
+    const dustMat = new THREE.PointsMaterial({
+      size: 1.6, color: 0xffc9dd, map: makeGlowTexture("rgba(255,255,255,1)", "rgba(255,255,255,0.2)"),
+      transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending
+    });
+    const dust = new THREE.Points(dustGeo, dustMat);
+    scene.add(dust);
+
+    scene.fog = new THREE.FogExp2(0x160a14, 0.0016);
+
+    let mx = 0, my = 0, t = 0, boost = 0;
+    window.addEventListener("pointermove", (e) => {
+      mx = (e.clientX / innerWidth - 0.5) * 2;
+      my = (e.clientY / innerHeight - 0.5) * 2;
+    }, { passive: true });
+
+    function resize() {
+      renderer.setSize(innerWidth, innerHeight);
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+    }
+    resize();
+    window.addEventListener("resize", resize);
+
+    const cAccent = new THREE.Color(), cTmp = new THREE.Color();
+    let curTheme = null;
+
+    (function frame() {
+      requestAnimationFrame(frame);
+      t += 0.016;
+      boost *= 0.965;
+      const th = themeRef();
+      if (th !== curTheme) {
+        curTheme = th;
+        cAccent.set(th.accent);
+        scene.fog.color.set(th.nebula[2]);
+        nebMats.forEach((m, i) => { cTmp.set(th.nebula[i % th.nebula.length]); m.color.copy(cTmp); });
+        starMats.forEach((m, i) => { cTmp.set(th.stars[i % th.stars.length]); m.color.copy(cTmp).lerp(new THREE.Color(0xffffff), 0.55); });
+        dustMat.color.set(th.accent);
+      }
+      const spin = 0.006 + boost * 0.11;
+      starGroup.rotation.y += spin * 0.016;
+      starGroup.rotation.x = Math.sin(t * 0.05) * 0.04;
+      nebulae.rotation.y -= spin * 0.5 * 0.016;
+      dust.rotation.y += 0.012 * 0.016 + boost * 0.05 * 0.016;
+      const dp = dust.geometry.attributes.position;
+      for (let i = 0; i < dustCount; i++) {
+        dp.array[i * 3 + 1] += dustVel[i] * (1 + boost * 8);
+        if (dp.array[i * 3 + 1] > 90) dp.array[i * 3 + 1] = -90;
+        if (dp.array[i * 3 + 1] < -90) dp.array[i * 3 + 1] = 90;
+      }
+      dp.needsUpdate = true;
+      camera.position.x += (mx * 14 - camera.position.x) * 0.03;
+      camera.position.y += (-my * 9 - camera.position.y) * 0.03;
+      camera.position.z = 60 - boost * 26;
+      camera.lookAt(0, 0, 0);
+      renderer.render(scene, camera);
+    })();
+
+    return { boost(v) { boost = Math.max(boost, v); } };
+  }
+
+  /* ---------- boot ---------- */
+  let engine = null;
+  let currentTheme = "home";
+  function init() {
+    const canvas = $("gl");
+    const themeRef = () => THEMES[currentTheme] || THEMES.home;
+    let world;
+    if (window.THREE) {
+      try { world = start3D(canvas, themeRef); }
+      catch (e) { console.warn("WebGL unavailable, using 2D sky", e); world = start2D(canvas, themeRef); }
+    } else {
+      world = start2D(canvas, themeRef);
+    }
+    engine = world;
+    document.body.dataset.theme = currentTheme;
+  }
+  function setTheme(name) {
+    currentTheme = name;
+    document.body.dataset.theme = name;
+  }
+  function boost(v = 1) { if (engine) engine.boost(v); }
+
+  return { init, setTheme, boost, confetti, floatText, flash, ripple };
+})();
+/* ============================================================
+   APP SHELL — cinematic router between views.
+   ============================================================ */
+let currentView = null;
+function showView(id, theme) {
+  if (theme) FX.setTheme(theme);
+  const next = $(id);
+  if (!next || next === currentView) return;
+  const prev = currentView;
+  currentView = next;
+  if (prev) {
+    prev.classList.add("veil-out");
+    prev.classList.remove("veil-in");
+    setTimeout(() => { prev.classList.add("hidden"); prev.classList.remove("veil-out"); }, 380);
+  }
+  next.classList.remove("hidden");
+  next.classList.add("veil-in");
+  window.scrollTo(0, 0);
+}
+function innerShow(container, id) {
+  container.querySelectorAll(":scope > .inner-screen").forEach((s) => {
+    const active = s.id === id;
+    s.classList.toggle("hidden", !active);
+    if (active) { s.classList.remove("veil-in"); void s.offsetWidth; s.classList.add("veil-in"); }
+  });
+}
+
+/* ============================================================
+   HOME — pairing, the journey, the arcade, the scrapbook.
+   ============================================================ */
+const Home = (() => {
+  const GAMES = [
+    {
+      id: "signal-decoder", icon: "🔐", chapter: 1, mins: "~6 min",
+      title: "Signal Decoder",
+      tag: "One of you sees the console. One of you holds the manual. Neither sees both — talk or fail.",
+      mode: "Asymmetric co-op puzzle"
+    },
+    {
+      id: "heart-sync", icon: "💓", chapter: 1, mins: "~4 min",
+      title: "Heart Sync",
+      tag: "Cues fly down your own lane. Tap on the beat, together, and charge one shared heart.",
+      mode: "Co-op rhythm"
+    },
+    {
+      id: "mirror-round", icon: "🪞", chapter: 2, mins: "~8 min",
+      title: "Mirror Round",
+      tag: "Answer secretly. Guess your partner. Both cards flip at the same moment. Ends with the Simultaneous Draw.",
+      mode: "Predict & reveal"
+    }
+  ];
+
+  function init() {
+    const roomInput = $("room-input");
+    const roomEcho = $("room-echo");
+    const saved = getRoom() === "DEMO" ? makeRoomCode() : getRoom();
+    localStorage.setItem("dn:room", saved);
+    roomInput.value = saved;
+    roomEcho.textContent = saved;
+
+    roomInput.addEventListener("input", () => {
+      const v = roomInput.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4);
+      roomInput.value = v;
+      if (v.length === 4) {
+        localStorage.setItem("dn:room", v);
+        roomEcho.textContent = v;
+        document.querySelectorAll(".echo-room").forEach((el) => (el.textContent = v));
+        SFX.tap();
+      }
+    });
+    $("random-room").addEventListener("click", () => {
+      ensureAudio();
+      const v = makeRoomCode();
+      roomInput.value = v;
+      localStorage.setItem("dn:room", v);
+      roomEcho.textContent = v;
+      document.querySelectorAll(".echo-room").forEach((el) => (el.textContent = v));
+      SFX.good();
+      FX.confetti({ count: 30, power: 0.7 });
+    });
+
+    renderGames();
+    renderScrapbook();
+
+    document.addEventListener("pointerdown", function unlock() {
+      ensureAudio();
+      document.removeEventListener("pointerdown", unlock);
+    });
+  }
+
+  function renderGames() {
+    const list = $("game-list");
+    list.innerHTML = "";
+    GAMES.forEach((g, i) => {
+      const a = document.createElement("a");
+      a.className = "game-card card tilt";
+      a.href = "#";
+      a.innerHTML = `
+        <div class="gc-orb"><span>${g.icon}</span><div class="gc-ring"></div></div>
+        <div class="gc-body">
+          <div class="gc-top"><h3>${g.title}</h3><span class="gc-mins">${g.mins}</span></div>
+          <p>${g.tag}</p>
+          <div class="gc-meta"><span class="gc-mode">${g.mode}</span><span class="gc-ch">Chapter ${g.chapter}</span></div>
+        </div>
+        <div class="gc-go">▶</div>`;
+      a.style.animationDelay = `${0.15 + i * 0.12}s`;
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        ensureAudio();
+        SFX.good();
+        FX.boost(1.4);
+        setTimeout(() => enterGame(g.id), 320);
+      });
+      attachTilt(a);
+      list.appendChild(a);
+    });
+  }
+
+  function attachTilt(el) {
+    let raf = null;
+    el.addEventListener("pointermove", (e) => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        const r = el.getBoundingClientRect();
+        const px = (e.clientX - r.left) / r.width - 0.5;
+        const py = (e.clientY - r.top) / r.height - 0.5;
+        el.style.transform = `perspective(900px) rotateX(${py * -7}deg) rotateY(${px * 9}deg) translateY(-3px)`;
+        el.style.setProperty("--gx", `${(px + 0.5) * 100}%`);
+        el.style.setProperty("--gy", `${(py + 0.5) * 100}%`);
+        raf = null;
+      });
+    });
+    el.addEventListener("pointerleave", () => {
+      el.style.transform = "";
+    });
+  }
+
+  function renderScrapbook() {
+    const book = getScrapbook();
+    const sb = $("scrapbook");
+    if (book.length === 0) {
+      sb.innerHTML = '<p class="subtle">Empty so far. Artifacts you earn tonight will live here — a postcard from every game you finish together.</p>';
+      return;
+    }
+    sb.innerHTML = '<div class="artifact-grid">' + book.slice(-9).map((a) =>
+      `<div class="artifact" title="${esc(a.at ? relTime(a.at) : "")}"><div>${a.icon}</div><span>${esc(a.label)}</span></div>`).join("") + "</div>";
+  }
+
+  function enterGame(id) {
+    if (id === "signal-decoder") { showView("view-signal", "signal"); SignalGame.enter(); }
+    if (id === "heart-sync") { showView("view-heart", "heart"); HeartGame.enter(); }
+    if (id === "mirror-round") { showView("view-mirror", "mirror"); MirrorGame.enter(); }
+  }
+
+  function goHome() {
+    renderScrapbook();
+    document.querySelectorAll(".echo-room").forEach((el) => (el.textContent = getRoom()));
+    showView("view-home", "home");
+  }
+
+  return { init, goHome, renderScrapbook };
+})();
+
+document.querySelectorAll(".btn-home").forEach((b) =>
+  b.addEventListener("click", () => { ensureAudio(); SFX.tap(); Home.goHome(); }));
+/* ============================================================
+   🔐 SIGNAL DECODER — asymmetric info puzzle, rebuilt as a
+   glowing 3D console floating in the void (graceful 2D cards
+   when Three.js is offline). Console Operator touches; Manual
+   Keeper knows. Voice is the network.
+   ============================================================ */
+const SignalGame = (() => {
+  let chan = null, myName = "", announce, onPartner, partnerName = null, announceTimer = null;
+  let role = null, roundIdx = 0, roundState = null, score = 0;
+  let timerId = null, timeLeft = 60, ended = false, started = false;
+
+  const EMOJI = ["🌙", "⭐", "🔥", "🌊", "🍀", "🎵"];
+  const WORDS = ["MOON", "WAVE", "SPARK", "BLOOM", "EMBER", "TIDE"];
+  const ROUND_TIME = 60, PTS_SOLVE = 100, PTS_ERROR = -5;
+
+  const ROUNDS = [
+    {
+      key: "lights", label: "THE FOUR LIGHTS",
+      hint: "Four dead lights. The manual knows their waking order.",
+      build(seed) { return { order: seededShuffle([0, 1, 2, 3], seed), progress: 0 }; },
+      manual(st) {
+        const seq = st.order.map((i) => EMOJI[i]).join(" → ");
+        return `<div class="manual-section"><h4>MODULE · THE FOUR LIGHTS</h4>
+          <p>The console shows four dark glyphs, each carved with a sign.</p>
+          <div class="manual-figure">${seq}</div>
+          <p>They wake only in <b>this exact order</b>. A wrong touch resets them all.
+          Read the sequence aloud, sign by sign, and let the Operator tap along.</p></div>`;
+      }
+    },
+    {
+      key: "dial", label: "THE BRASS DIAL",
+      hint: "A stubborn dial. Too far and it jams.",
+      build(seed) { return { value: 0, target: 3 + (seed % 5), done: false }; },
+      manual(st) {
+        return `<div class="manual-section"><h4>MODULE · THE BRASS DIAL</h4>
+          <p>The dial is calibrated for tonight's frequency.</p>
+          <div class="manual-figure">⟶ ${st.target} ⟶</div>
+          <p>Tell the Operator the <b>exact number</b> to stop on.
+          Every wrong lock jams the gears (−5 pts).</p></div>`;
+      }
+    },
+    {
+      key: "cipher", label: "THE WHISPERED WORD",
+      hint: "One word decides whether the signal opens.",
+      build(seed) { return { word: WORDS[seed % WORDS.length], typed: "", done: false }; },
+      manual(st) {
+        return `<div class="manual-section"><h4>MODULE · THE WHISPERED WORD</h4>
+          <p>The cipher drum accepts one word. Never read it all at once — the static learns.</p>
+          <div class="manual-figure">${st.word.split("").join(" ")}</div>
+          <p>Spell it to the Operator <b>one letter at a time</b>, slowly. Confirm each letter before the next.</p></div>`;
+      }
+    }
+  ];
+
+  /* ---------------- console 3D scene (lights round) ---------------- */
+  const C3 = { active: false, raf: null };
+  function stop3D() {
+    C3.active = false;
+    if (C3.raf) cancelAnimationFrame(C3.raf);
+    C3.raf = null;
+    if (C3.renderer) { C3.renderer.dispose(); C3.renderer.forceContextLoss && C3.renderer.forceContextLoss(); }
+    C3.renderer = null;
+    $("sig-stage").classList.add("hidden");
+    $("sig-module-dom").classList.remove("hidden");
+  }
+  function startLights3D(onPick) {
+    if (!window.THREE) return false;
+    try {
+      const stage = $("sig-stage");
+      const cv = $("sig-canvas");
+      stage.classList.remove("hidden");
+      $("sig-module-dom").classList.add("hidden");
+      const THREE = window.THREE;
+      const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      const scene = new THREE.Scene();
+      const cam = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+      cam.position.set(0, 1.1, 7.2);
+      cam.lookAt(0, 0, 0);
+      scene.add(new THREE.AmbientLight(0x446677, 1.4));
+      const key = new THREE.PointLight(0x7bf1c3, 30, 60);
+      key.position.set(4, 6, 6);
+      scene.add(key);
+      const rim = new THREE.PointLight(0xff5d8f, 22, 60);
+      rim.position.set(-5, -2, 4);
+      scene.add(rim);
+
+      // Pedestal console
+      const base = new THREE.Mesh(
+        new THREE.CylinderGeometry(3.4, 4.1, 0.5, 48),
+        new THREE.MeshStandardMaterial({ color: 0x12262b, metalness: 0.85, roughness: 0.35 })
+      );
+      base.position.y = -1.5;
+      scene.add(base);
+      const baseRing = new THREE.Mesh(
+        new THREE.TorusGeometry(3.55, 0.05, 12, 80),
+        new THREE.MeshBasicMaterial({ color: 0x7bf1c3, transparent: true, opacity: 0.6 })
+      );
+      baseRing.rotation.x = Math.PI / 2;
+      baseRing.position.y = -1.24;
+      scene.add(baseRing);
+
+      // Four glyph orbs
+      const orbs = [];
+      const glyphCv = [], glyphTx = [];
+      EMOJI.slice(0, 4).forEach((em, i) => {
+        const c = document.createElement("canvas");
+        c.width = c.height = 128;
+        const g = c.getContext("2d");
+        g.font = "86px serif";
+        g.textAlign = "center"; g.textBaseline = "middle";
+        g.fillText(em, 64, 72);
+        const tx = new THREE.CanvasTexture(c);
+        glyphCv.push(c); glyphTx.push(tx);
+        const mat = new THREE.MeshStandardMaterial({
+          color: 0x0d1f24, metalness: 0.4, roughness: 0.25,
+          emissive: 0x0a2a24, emissiveIntensity: 0.7,
+          map: tx, transparent: true
+        });
+        const orb = new THREE.Mesh(new THREE.SphereGeometry(0.78, 40, 40), mat);
+        const a = (i / 4) * TAU + TAU / 8;
+        orb.position.set(Math.cos(a) * 2.15, 0, Math.sin(a) * 2.15);
+        orb.userData = { idx: i, lit: false, baseY: 0 };
+        const halo = new THREE.Mesh(
+          new THREE.TorusGeometry(0.95, 0.035, 10, 48),
+          new THREE.MeshBasicMaterial({ color: 0x7bf1c3, transparent: true, opacity: 0.0 })
+        );
+        halo.rotation.x = Math.PI / 2;
+        orb.add(halo);
+        orb.userData.halo = halo;
+        orbs.push(orb);
+        scene.add(orb);
+      });
+
+      // Ambient motes
+      const pn = 90, ppos = new Float32Array(pn * 3);
+      for (let i = 0; i < pn; i++) {
+        ppos[i * 3] = (Math.random() - 0.5) * 12;
+        ppos[i * 3 + 1] = (Math.random() - 0.5) * 7;
+        ppos[i * 3 + 2] = (Math.random() - 0.5) * 12;
+      }
+      const pgeo = new THREE.BufferGeometry();
+      pgeo.setAttribute("position", new THREE.BufferAttribute(ppos, 3));
+      scene.add(new THREE.Points(pgeo, new THREE.PointsMaterial({
+        size: 0.06, color: 0x9be7ff, transparent: true, opacity: 0.7,
+        blending: THREE.AdditiveBlending, depthWrite: false
+      })));
+
+      const ray = new THREE.Raycaster();
+      const ptr = new THREE.Vector2();
+      let hover = null, t = 0;
+      function resize() {
+        const w = stage.clientWidth || 600, h = stage.clientHeight || 420;
+        renderer.setSize(w, h, false);
+        cam.aspect = w / h;
+        cam.updateProjectionMatrix();
+      }
+      resize();
+      C3.resize = resize;
+
+      function pick(e) {
+        const r = cv.getBoundingClientRect();
+        ptr.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+        ptr.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+        ray.setFromCamera(ptr, cam);
+        const hits = ray.intersectObjects(orbs);
+        return hits.length ? hits[0].object : null;
+      }
+      cv.addEventListener("pointermove", (e) => { hover = pick(e); cv.style.cursor = hover ? "pointer" : "default"; });
+      cv.addEventListener("pointerdown", (e) => {
+        const hit = pick(e);
+        if (hit) onPick(hit.userData.idx);
+      });
+
+      C3.active = true;
+      C3.renderer = renderer;
+      C3.orbs = orbs;
+      (function frame() {
+        if (!C3.active) return;
+        C3.raf = requestAnimationFrame(frame);
+        t += 0.016;
+        orbs.forEach((o, i) => {
+          o.position.y = o.userData.baseY + Math.sin(t * 1.4 + i * 1.7) * 0.12;
+          o.rotation.y += 0.01;
+          const target = o === hover ? 1.16 : 1;
+          o.scale.setScalar(o.scale.x + (target - o.scale.x) * 0.18);
+          const halo = o.userData.halo;
+          halo.material.opacity = o.userData.lit ? 0.85 : (o === hover ? 0.45 : 0.08);
+          halo.rotation.z += 0.02;
+          if (o.userData.lit) o.material.emissiveIntensity = 1.6 + Math.sin(t * 3) * 0.35;
+        });
+        baseRing.rotation.z += 0.004;
+        base.rotation.y += 0.002;
+        renderer.render(scene, cam);
+      })();
+      return true;
+    } catch (e) {
+      console.warn("3D console failed, using 2D", e);
+      stop3D();
+      return false;
+    }
+  }
+  function lightOrb(i) {
+    if (C3.active && C3.orbs && C3.orbs[i]) {
+      const o = C3.orbs[i];
+      o.userData.lit = true;
+      o.material.emissive.set(0x2bd9a7);
+    }
+  }
+  function resetOrbs() {
+    if (C3.active && C3.orbs) C3.orbs.forEach((o) => {
+      o.userData.lit = false;
+      o.material.emissive.set(0x0a2a24);
+      o.material.emissiveIntensity = 0.7;
+    });
+  }
+
+  /* ---------------- lifecycle ---------------- */
+  function enter() {
+    const room = getRoom();
+    $("sig-lobby-room").textContent = `ROOM ${room}`;
+    ({ chan, myName, announce, onPartner } = joinRoom(room, "signal-decoder"));
+    partnerName = null; role = null; roundIdx = 0; score = 0; ended = false; started = false;
+    document.querySelectorAll("#view-signal .echo-room").forEach((el) => (el.textContent = room));
+    $("sig-lobby-status").textContent = "Waiting for your partner… open this same file in a second tab and pick 🔐 Signal Decoder.";
+    $("sig-lobby-status").classList.add("waiting");
+    $("btn-sig-start").disabled = true;
+    innerShow($("view-signal"), "sig-lobby");
+
+    onPartner((name) => {
+      partnerName = name;
+      $("sig-lobby-status").classList.remove("waiting");
+      $("sig-lobby-status").textContent = `${name} is here 💞`;
+      $("btn-sig-start").disabled = false;
+      SFX.sync();
+      FX.confetti({ count: 26, power: 0.7 });
+    });
+    announce();
+    clearInterval(announceTimer);
+    announceTimer = setInterval(announce, 2000);
+
+    chan.on((msg) => {
+      if (msg.__local) return;
+      if (msg.event === "deal") {
+        const iAmConsole = msg.payload.consolePlayer === myName;
+        if (role === null) startGame(iAmConsole ? "console" : "manual");
+      }
+      if (msg.event === "partnerReady") {
+        $("sig-role-status").classList.remove("waiting");
+        $("sig-role-status").textContent = `${partnerName || "Partner"} is ready — round 1 incoming…`;
+        setTimeout(() => { innerShow($("view-signal"), "sig-game"); beginRound(); }, 1500);
+      }
+      if (msg.event === "solved") onSolved(msg.payload.round, false);
+      if (msg.event === "score" && msg.payload.round === roundIdx) flashScore(msg.payload.total);
+      if (msg.event === "gateChoice") onGateChoice(msg.payload.choice, false);
+    });
+  }
+
+  $("btn-sig-start").addEventListener("click", () => {
+    ensureAudio(); SFX.win(); FX.boost(1.5);
+    const names = [myName, partnerName].sort();
+    const iAmConsole = names[0] === myName;
+    chan.send("deal", { consolePlayer: names[0] });
+    startGame(iAmConsole ? "console" : "manual");
+  });
+
+  function startGame(myRole) {
+    role = myRole;
+    innerShow($("view-signal"), "sig-role");
+    if (role === "console") {
+      $("sig-role-emoji").textContent = "🎛️";
+      $("sig-role-title").textContent = "You are the Console Operator";
+      $("sig-role-desc").innerHTML = `Your screen shows the signal console — glyph orbs, dials, cipher drums.<br/>
+        You can <b>touch</b> everything and <b>understand</b> nothing.<br/>
+        ${esc(partnerName || "Your partner")} holds the manual. Trust their voice.`;
+    } else {
+      $("sig-role-emoji").textContent = "📖";
+      $("sig-role-title").textContent = "You are the Manual Keeper";
+      $("sig-role-desc").innerHTML = `Your screen holds the field manual — every rule, every answer.<br/>
+        You <b>understand</b> everything and can <b>touch</b> nothing.<br/>
+        Describe, don't show. ${esc(partnerName || "Your partner")}'s hands are the only way in.`;
+    }
+    $("sig-banner").textContent = role === "console" ? "🎛️ CONSOLE OPERATOR" : "📖 MANUAL KEEPER";
+    $("sig-banner").className = "role-banner " + (role === "console" ? "role-console" : "role-manual");
+    chan.send("partnerReady", {});
+  }
+
+  /* ---------------- rounds ---------------- */
+  function beginRound() {
+    const def = ROUNDS[roundIdx];
+    const seed = [...(getRoom() + roundIdx)].reduce((a, c) => a + c.charCodeAt(0), 0);
+    roundState = def.build(seed);
+    timeLeft = ROUND_TIME;
+    $("sig-hud-round").textContent = `ROUND ${roundIdx + 1} / ${ROUNDS.length + 1}`;
+    $("sig-hud-timer").textContent = fmtTime(timeLeft);
+    $("sig-hud-timer").classList.remove("hot");
+    $("sig-hud-score").textContent = `${score} PTS`;
+    setSeals(false);
+    stop3D();
+
+    if (role === "console") {
+      $("sig-module-label").textContent = def.label;
+      $("sig-module-hint").textContent = def.hint;
+      renderModule(def);
+      $("sig-view-console").classList.remove("hidden");
+      $("sig-view-manual").classList.add("hidden");
+    } else {
+      $("sig-manual-round").textContent = String(roundIdx + 1);
+      $("sig-manual-body").innerHTML = def.manual(roundState);
+      $("sig-view-console").classList.add("hidden");
+      $("sig-view-manual").classList.remove("hidden");
+    }
+    clearInterval(timerId);
+    timerId = setInterval(tick, 1000);
+  }
+
+  function tick() {
+    timeLeft -= 1;
+    $("sig-hud-timer").textContent = fmtTime(timeLeft);
+    if (timeLeft <= 10) { $("sig-hud-timer").classList.add("hot"); SFX.tick(); }
+    if (timeLeft <= 0) {
+      clearInterval(timerId);
+      if (role === "console") chan.send("solved", { round: roundIdx, timeout: true });
+      onSolved(roundIdx, true);
+    }
+  }
+
+  function addScore(delta) {
+    score = Math.max(0, score + delta);
+    $("sig-hud-score").textContent = `${score} PTS`;
+    if (role === "console") chan.send("score", { total: score, round: roundIdx });
+    if (delta < 0) { SFX.bad(); FX.flash("rgba(255,107,107,0.14)"); }
+  }
+  function flashScore(total) {
+    if (typeof total === "number") score = total;
+    $("sig-hud-score").textContent = `${score} PTS`;
+  }
+  function setSeals(lit) {
+    document.querySelectorAll("#view-signal .seal").forEach((el) => {
+      el.classList.toggle("lit", lit);
+      el.textContent = lit ? "💗" : "🔒";
+    });
+  }
+
+  /* ---------------- console modules ---------------- */
+  function renderModule(def) {
+    const dom = $("sig-module-dom");
+    dom.innerHTML = "";
+
+    if (def.key === "lights") {
+      const used3D = startLights3D(tapLight);
+      if (!used3D) {
+        const strip = document.createElement("div");
+        strip.className = "signal-strip";
+        [0, 1, 2, 3].forEach((i) => {
+          const l = document.createElement("span");
+          l.className = "signal-light";
+          l.id = `sig-light-${i}`;
+          l.textContent = "💡";
+          strip.appendChild(l);
+        });
+        const grid = document.createElement("div");
+        grid.className = "console-grid";
+        [0, 1, 2, 3].forEach((i) => {
+          const b = document.createElement("button");
+          b.className = "console-btn";
+          b.textContent = EMOJI[i];
+          b.addEventListener("click", () => tapLight(i));
+          grid.appendChild(b);
+        });
+        dom.appendChild(strip);
+        dom.appendChild(grid);
+      }
+    }
+
+    if (def.key === "dial") {
+      const wrap = document.createElement("div");
+      wrap.className = "dial-wrap";
+      wrap.innerHTML = `
+        <div class="dial-face" id="sig-dial-face"><div class="dial-needle" id="sig-dial-needle"></div><div class="dial-value" id="sig-dial-value">0</div></div>
+        <div class="dial-row">
+          <button id="sig-dial-minus">−</button>
+          <button id="sig-dial-plus">+</button>
+          <button id="sig-dial-set" class="ghost" style="margin-left:6px;">✔ lock</button>
+        </div>`;
+      dom.appendChild(wrap);
+      $("sig-dial-minus").addEventListener("click", () => nudgeDial(-1));
+      $("sig-dial-plus").addEventListener("click", () => nudgeDial(1));
+      $("sig-dial-set").addEventListener("click", confirmDial);
+    }
+
+    if (def.key === "cipher") {
+      const slots = document.createElement("div");
+      slots.className = "word-slots";
+      for (let i = 0; i < roundState.word.length; i++) {
+        const s = document.createElement("span");
+        s.id = `sig-slot-${i}`;
+        slots.appendChild(s);
+      }
+      const kb = document.createElement("div");
+      kb.className = "keyboard";
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach((ch) => {
+        const b = document.createElement("button");
+        b.textContent = ch;
+        b.addEventListener("click", () => typeLetter(ch, b));
+        kb.appendChild(b);
+      });
+      dom.appendChild(slots);
+      dom.appendChild(kb);
+    }
+  }
+
+  function tapLight(i) {
+    const st = roundState;
+    if (!st || st.progress >= 4) return;
+    if (st.order[st.progress] === i) {
+      st.progress += 1;
+      SFX.good();
+      lightOrb(i);
+      const el = $(`sig-light-${i}`);
+      if (el) el.classList.add("active");
+      FX.ripple(innerWidth / 2, innerHeight / 2, "rgba(123,241,195,0.9)");
+      if (st.progress === 4) solveRound();
+    } else {
+      st.progress = 0;
+      resetOrbs();
+      [0, 1, 2, 3].forEach((j) => { const el = $(`sig-light-${j}`); if (el) el.classList.remove("active"); });
+      FX.flash("rgba(255,107,107,0.18)");
+      addScore(PTS_ERROR);
+    }
+  }
+
+  function nudgeDial(d) {
+    roundState.value = clamp(roundState.value + d, 0, 9);
+    $("sig-dial-value").textContent = String(roundState.value);
+    $("sig-dial-needle").style.transform = `rotate(${-110 + roundState.value * (220 / 9)}deg)`;
+    SFX.tap();
+  }
+  function confirmDial() {
+    if (roundState.value === roundState.target) {
+      roundState.done = true;
+      solveRound();
+    } else {
+      $("sig-dial-face").classList.add("shake");
+      setTimeout(() => $("sig-dial-face").classList.remove("shake"), 450);
+      addScore(PTS_ERROR);
+    }
+  }
+  function typeLetter(ch, btn) {
+    const st = roundState;
+    const idx = st.typed.length;
+    if (idx >= st.word.length) return;
+    if (st.word[idx] === ch) {
+      st.typed += ch;
+      $(`sig-slot-${idx}`).textContent = ch;
+      btn.classList.add("key-good");
+      SFX.good();
+      if (st.typed === st.word) { st.done = true; solveRound(); }
+    } else {
+      addScore(PTS_ERROR);
+      const slot = $(`sig-slot-${idx}`);
+      slot.classList.add("shake");
+      btn.classList.add("key-bad");
+      setTimeout(() => { slot.classList.remove("shake"); btn.classList.remove("key-bad"); }, 450);
+    }
+  }
+
+  function solveRound() {
+    addScore(PTS_SOLVE);
+    SFX.win();
+    FX.confetti({ count: 70, power: 1.1 });
+    FX.boost(1.2);
+    chan.send("solved", { round: roundIdx, timeout: false });
+    onSolved(roundIdx, false);
+  }
+
+  function onSolved(round, timedOut) {
+    if (round !== roundIdx || ended) return;
+    clearInterval(timerId);
+    setSeals(true);
+    if (role === "manual") flashScore();
+    if (timedOut && role === "console") $("sig-module-hint").textContent = "The static swallowed this one… moving on.";
+    setTimeout(() => {
+      if (ended) return;
+      roundIdx += 1;
+      if (roundIdx < ROUNDS.length - 1) beginRound();
+      else if (roundIdx === ROUNDS.length - 1) showGate();
+      else showEnd(true);
+    }, 1700);
+  }
+
+  /* ---------------- consent gate ---------------- */
+  let myGateChoice = null, partnerGateChoice = null, gateTimer = null;
+  function showGate() {
+    innerShow($("view-signal"), "sig-gate");
+    stop3D();
+    myGateChoice = null; partnerGateChoice = null;
+    SFX.gate();
+    let n = 5;
+    $("sig-gate-status").textContent = `Choosing… ${n}`;
+    gateTimer = setInterval(() => {
+      n -= 1;
+      $("sig-gate-status").textContent = n > 0 ? `Choosing… ${n}` : "";
+      if (n > 0) SFX.tick();
+      if (n <= 0) { clearInterval(gateTimer); if (!myGateChoice) chooseGate("stay"); }
+    }, 1000);
+  }
+  function chooseGate(choice) {
+    if (myGateChoice) return;
+    myGateChoice = choice;
+    clearInterval(gateTimer);
+    SFX.tap();
+    chan.send("gateChoice", { choice });
+    onGateChoice(choice, true);
+  }
+  function onGateChoice(choice, mine) {
+    if (mine) myGateChoice = choice; else partnerGateChoice = choice;
+    if (!myGateChoice || !partnerGateChoice) {
+      $("sig-gate-status").textContent = "One heart has chosen…";
+      return;
+    }
+    if (myGateChoice === "deeper" && partnerGateChoice === "deeper") {
+      $("sig-gate-status").textContent = "Both said deeper. 🌊";
+      FX.confetti({ count: 60 });
+      FX.boost(1.6);
+      setTimeout(() => { if (!ended) { innerShow($("view-signal"), "sig-game"); beginRound(); } }, 1300);
+    } else if (myGateChoice !== partnerGateChoice) {
+      $("sig-gate-status").innerHTML = "One said deeper, one said not yet.<br/>Take 30 seconds — ask each other where you are tonight. 💬";
+      setTimeout(() => { if (!ended) { innerShow($("view-signal"), "sig-game"); beginRound(); } }, 8000);
+    } else {
+      $("sig-gate-status").textContent = "Staying in the shallows — still beautiful. 🌙";
+      setTimeout(() => { if (!ended) { innerShow($("view-signal"), "sig-game"); beginRound(); } }, 1300);
+    }
+  }
+  $("sig-gate-deeper").addEventListener("click", () => chooseGate("deeper"));
+  $("sig-gate-stay").addEventListener("click", () => chooseGate("stay"));
+
+  /* ---------------- ending ---------------- */
+  function showEnd() {
+    ended = true;
+    stop3D();
+    clearInterval(timerId);
+    innerShow($("view-signal"), "sig-end");
+    $("sig-end-score").textContent = `${score}`;
+    const verdict =
+      score >= 380 ? "You two move like one operator. The signal never stood a chance." :
+      score >= 200 ? "Static fought. You fought back — together. That's the whole game." :
+      "The signal was noisy tonight. So is every good conversation at first.";
+    $("sig-end-verdict").textContent = verdict;
+    $("sig-coda-text").textContent = "“Somewhere in the static was a frequency only the two of you could find — not because either of you was enough, but because you were listening for each other.”";
+    $("sig-coda-prompt").textContent = "💬 Say out loud one moment tonight where your partner's words saved you.";
+    addArtifact({ icon: "📮", label: `Signal decoded · ${score} pts`, game: "signal-decoder" });
+    SFX.win();
+    FX.confetti({ count: 120, power: 1.3 });
+  }
+
+  return { enter };
+})();
+/* ============================================================
+   💓 HEART SYNC — co-op rhythm through a neon particle field.
+   Tap your lane's hearts on the beat; taps within 280ms of each
+   other detonate a SYNC surge that charges the shared heart.
+   ============================================================ */
+const HeartGame = (() => {
+  let chan = null, myName = "", announce, onPartner, partnerName = null, announceTimer = null;
+
+  const BPM = 96;
+  const BEAT_MS = 60000 / BPM;
+  const SONG_BEATS = 56;
+  const SPAWN_LEAD_MS = 2200;
+  const PERFECT_MS = 90, GOOD_MS = 170, SYNC_WINDOW = 280;
+  const CHARGE_SYNC = 4, CHARGE_PERFECT = 2, CHARGE_GOOD = 1, CHARGE_MISS = -2;
+
+  let songStart = 0, chart = [], myLane = 0;
+  let myHits = [], partnerHits = [];
+  let charge = 0, streak = 0, bestStreak = 0, syncCount = 0;
+  let scoredBeats = new Set();
+  let rafId = null, ended = false, lastTickBeat = -1;
+
+  const particles = [];
+  let trail = [];
+
+  function buildChart(room) {
+    let seed = [...room].reduce((a, c) => a + c.charCodeAt(0), 7);
+    const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const cues = [];
+    for (let b = 2; b < SONG_BEATS; b++) {
+      const r = rand();
+      if (r < 0.22) { cues.push({ beat: b, lane: 0 }); cues.push({ beat: b, lane: 1 }); }
+      else if (r < 0.66) cues.push({ beat: b, lane: b % 2 });
+    }
+    return cues;
+  }
+
+  function enter() {
+    const room = getRoom();
+    $("hs-lobby-room").textContent = `ROOM ${room}`;
+    ({ chan, myName, announce, onPartner } = joinRoom(room, "heart-sync"));
+    partnerName = null; ended = false; songStart = 0;
+    charge = 0; streak = 0; bestStreak = 0; syncCount = 0;
+    scoredBeats = new Set(); myHits = []; partnerHits = [];
+    particles.length = 0; trail = [];
+    $("hs-lobby-status").textContent = "Waiting for your partner… same file, second tab, pick 💓 Heart Sync.";
+    $("hs-lobby-status").classList.add("waiting");
+    $("btn-hs-start").disabled = true;
+    innerShow($("view-heart"), "hs-lobby");
+
+    onPartner((name) => {
+      partnerName = name;
+      $("hs-lobby-status").classList.remove("waiting");
+      $("hs-lobby-status").textContent = `${name} is here 💞`;
+      $("btn-hs-start").disabled = false;
+      SFX.sync();
+      FX.confetti({ count: 26, power: 0.7 });
+    });
+    announce();
+    clearInterval(announceTimer);
+    announceTimer = setInterval(announce, 2000);
+
+    chan.on((msg) => {
+      if (msg.__local) return;
+      if (msg.event === "startSong") { ensureAudio(); beginSong(msg.payload.startAt); }
+      if (msg.event === "hit") onPartnerHit(msg.payload);
+      if (msg.event === "done") maybeEnd();
+    });
+  }
+
+  $("btn-hs-start").addEventListener("click", () => {
+    ensureAudio();
+    SFX.win();
+    const startAt = performance.now() + 3200;
+    chan.send("startSong", { startAt });
+    beginSong(startAt);
+  });
+
+  function beginSong(startAt) {
+    if (songStart) return;
+    songStart = startAt;
+    chart = buildChart(getRoom());
+    const names = [myName, partnerName || "zzz"].sort();
+    myLane = names[0] === myName ? 0 : 1;
+    innerShow($("view-heart"), "hs-game");
+    $("hs-note").textContent = myLane === 0
+      ? "Your lane is 🌹 rose — tap hearts as they cross the line"
+      : "Your lane is 💜 violet — tap hearts as they cross the line";
+    $("hs-hud-syncs").textContent = "💞 0 syncs";
+    $("hs-hud-streak").textContent = "🔥 0";
+    $("hs-meter-fill").style.width = "0%";
+    const cv = $("hs-canvas");
+    sizeCanvas(cv);
+    rafId = requestAnimationFrame(frame);
+  }
+
+  function sizeCanvas(cv) {
+    const w = Math.min(innerWidth, 640);
+    cv.width = w * devicePixelRatio;
+    cv.height = Math.round(innerHeight * 0.62) * devicePixelRatio;
+    cv.style.width = w + "px";
+    cv.style.height = Math.round(innerHeight * 0.62) + "px";
+  }
+  window.addEventListener("resize", () => {
+    const cv = $("hs-canvas");
+    if (cv && $("hs-game") && !$("hs-game").classList.contains("hidden")) sizeCanvas(cv);
+  });
+
+  const songNow = () => performance.now() - songStart;
+
+  function frame() {
+    if (ended) return;
+    const cv = $("hs-canvas");
+    const ctx = cv.getContext("2d");
+    const now = songNow();
+    draw(ctx, cv, now);
+
+    if (now < 0) {
+      const prev = Math.ceil(-(now - 16) / 1000), cur = Math.ceil(-now / 1000);
+      if (cur !== prev && cur > 0 && cur <= 3) { feedback(String(cur), "#fdf3f6", true); SFX.tick(); }
+      if (cur <= 0 && prev > 0) { feedback("GO 💓", "#ffd166", true); SFX.good(); }
+    } else {
+      const beat = Math.floor(now / BEAT_MS);
+      if (beat !== lastTickBeat && beat < SONG_BEATS) { lastTickBeat = beat; tone(660, 0.04, 0.035, "triangle"); }
+      $("hs-hud-beat").textContent = `BEAT ${Math.min(beat, SONG_BEATS)} / ${SONG_BEATS}`;
+      chart.forEach((c) => {
+        const key = `m:${c.beat}:${c.lane}`;
+        if (c.lane === myLane && !scoredBeats.has(key) && now > c.beat * BEAT_MS + GOOD_MS + 60) {
+          scoredBeats.add(key);
+          streak = 0;
+          charge = Math.max(0, charge + CHARGE_MISS);
+          $("hs-hud-streak").textContent = "🔥 0";
+          updateMeter();
+          feedback("miss", "#8a6b7d", false);
+          SFX.bad();
+        }
+      });
+      if (beat >= SONG_BEATS + 3) {
+        chan.send("done", {});
+        maybeEnd();
+        return;
+      }
+    }
+    rafId = requestAnimationFrame(frame);
+  }
+
+  $("hs-canvas").addEventListener("pointerdown", (e) => {
+    if (!songStart || ended) return;
+    ensureAudio();
+    const now = songNow();
+    if (now < 0) return;
+    FX.ripple(e.clientX, e.clientY, myLane === 0 ? "rgba(255,93,143,0.9)" : "rgba(183,140,255,0.9)");
+    let best = null, bestAbs = Infinity;
+    chart.forEach((c) => {
+      if (c.lane !== myLane) return;
+      const key = `m:${c.beat}:${c.lane}`;
+      if (scoredBeats.has(key)) return;
+      const d = now - c.beat * BEAT_MS;
+      if (Math.abs(d) < bestAbs) { bestAbs = Math.abs(d); best = c; }
+    });
+    if (!best || bestAbs > 300) return;
+
+    const key = `m:${best.beat}:${best.lane}`;
+    scoredBeats.add(key);
+    const delta = now - best.beat * BEAT_MS;
+    myHits.push({ beat: best.beat, delta });
+    chan.send("hit", { beat: best.beat, at: now, lane: myLane });
+
+    if (bestAbs <= PERFECT_MS) {
+      streak += 1; charge += CHARGE_PERFECT;
+      feedback("PERFECT ✨", "#ffd166", false);
+      SFX.good();
+      burstAt(best, 10, "#ffd166");
+    } else if (bestAbs <= GOOD_MS) {
+      streak += 1; charge += CHARGE_GOOD;
+      feedback(delta < 0 ? "early 🌱" : "late 🍂", "#7bf1c3", false);
+      SFX.good();
+      burstAt(best, 6, "#7bf1c3");
+    } else {
+      streak = 0; charge = Math.max(0, charge + CHARGE_MISS);
+      feedback("off-beat", "#8a6b7d", false);
+      SFX.bad();
+    }
+    bestStreak = Math.max(bestStreak, streak);
+    charge = Math.min(100, charge);
+    $("hs-hud-streak").textContent = `🔥 ${streak}`;
+    updateMeter();
+    checkSync(best.beat);
+  });
+
+  function onPartnerHit(p) {
+    partnerHits.push(p);
+    checkSync(p.beat);
+  }
+  function checkSync(beat) {
+    const key = `s:${beat}`;
+    if (scoredBeats.has(key)) return;
+    const mine = myHits.find((h) => h.beat === beat);
+    const theirs = partnerHits.find((h) => h.beat === beat);
+    if (!mine || !theirs) return;
+    if (Math.abs(mine.delta - theirs.delta) <= SYNC_WINDOW) {
+      scoredBeats.add(key);
+      syncCount += 1;
+      charge = Math.min(100, charge + CHARGE_SYNC);
+      $("hs-hud-syncs").textContent = `💞 ${syncCount} sync${syncCount === 1 ? "" : "s"}`;
+      feedback("SYNC! 💞", "#ff9ebb", false);
+      SFX.sync();
+      updateMeter();
+      FX.boost(0.8);
+      const cv = $("hs-canvas");
+      burstXY(cv.width / 2, 110 * devicePixelRatio, 26, "#ff9ebb");
+      FX.flash("rgba(255,158,187,0.10)");
+    }
+  }
+
+  function maybeEnd() {
+    if (ended) return;
+    ended = true;
+    cancelAnimationFrame(rafId);
+    setTimeout(showEnd, 1200);
+  }
+
+  /* ---------------- rendering ---------------- */
+  function burstAt(cue, n, color) {
+    const cv = $("hs-canvas");
+    const laneW = cv.width / 2;
+    burstXY(cue.lane * laneW + laneW / 2, hitY(cv), n, color);
+  }
+  function burstXY(x, y, n, color) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * TAU, sp = (1.5 + Math.random() * 4) * devicePixelRatio;
+      particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - devicePixelRatio, life: 1, color, s: 0.5 + Math.random() * 0.9 });
+    }
+  }
+  const hitY = (cv) => cv.height * 0.78;
+
+  function drawHeart2(ctx, x, y, s, color, glow = 0) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(s, s);
+    if (glow) { ctx.shadowColor = color; ctx.shadowBlur = glow; }
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, 4);
+    ctx.bezierCurveTo(-8, -4, -18, 2, 0, 16);
+    ctx.bezierCurveTo(18, 2, 8, -4, 0, 4);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function draw(ctx, cv, now) {
+    const W = cv.width, H = cv.height, dpr = devicePixelRatio;
+    ctx.clearRect(0, 0, W, H);
+    const laneW = W / 2;
+    const HY = hitY(cv);
+
+    // Lane glow backgrounds
+    const laneColors = ["rgba(255,93,143,", "rgba(183,140,255,"];
+    for (let l = 0; l < 2; l++) {
+      const g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, laneColors[l] + "0)");
+      g.addColorStop(0.78, laneColors[l] + (l === myLane ? "0.10)" : "0.03)"));
+      g.addColorStop(1, laneColors[l] + (l === myLane ? "0.16)" : "0.05)"));
+      ctx.fillStyle = g;
+      ctx.fillRect(l * laneW, 0, laneW, H);
+    }
+
+    // Lane divider
+    ctx.strokeStyle = "rgba(255,255,255,0.08)";
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(laneW, 0); ctx.lineTo(laneW, H); ctx.stroke();
+
+    // Beat pulse
+    const pulse = now > 0 ? 1 + 0.09 * Math.max(0, Math.sin((now % BEAT_MS) / BEAT_MS * TAU)) : 1;
+
+    // Hit lines
+    ["#ff5d8f", "#b78cff"].forEach((color, lane) => {
+      const mine = lane === myLane;
+      ctx.save();
+      ctx.strokeStyle = mine ? color : "rgba(255,255,255,0.14)";
+      ctx.lineWidth = (mine ? 3 : 1.5) * dpr * (mine ? pulse : 1);
+      if (mine) { ctx.shadowColor = color; ctx.shadowBlur = 18 * pulse; }
+      ctx.beginPath();
+      ctx.moveTo(lane * laneW + 16 * dpr, HY);
+      ctx.lineTo((lane + 1) * laneW - 16 * dpr, HY);
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    // Cues with trails
+    chart.forEach((c) => {
+      const t = c.beat * BEAT_MS;
+      const y = HY - (t - now) * (HY - 60 * dpr) / SPAWN_LEAD_MS;
+      if (y < -40 || y > H + 40) return;
+      const x = c.lane * laneW + laneW / 2;
+      const mine = c.lane === myLane;
+      const hit = scoredBeats.has(`m:${c.beat}:${c.lane}`);
+      if (hit && mine) return;
+      const color = mine ? "#ff5d8f" : "rgba(183,140,255,0.35)";
+      const near = Math.max(0, 1 - Math.abs(t - now) / 240);
+      const size = (mine ? 1.9 : 1.3) * dpr * pulse * (1 + near * 0.4);
+      if (mine) trail.push({ x, y, life: 0.5, color });
+      drawHeart2(ctx, x, y, size, color, mine ? 20 + near * 22 : 0);
+    });
+
+    // Trails
+    for (let i = trail.length - 1; i >= 0; i--) {
+      const tr = trail[i];
+      tr.life -= 0.05;
+      if (tr.life <= 0) { trail.splice(i, 1); continue; }
+      drawHeart2(ctx, tr.x, tr.y, 1.2 * dpr * tr.life, tr.color.replace(")", `,${tr.life})`).replace("#ff5d8f", "rgba(255,93,143"), 0);
+    }
+    if (trail.length > 80) trail.splice(0, trail.length - 80);
+
+    // Shared heart
+    const beatPulse = now > 0 ? 1 + 0.14 * Math.max(0, Math.sin((now % BEAT_MS) / BEAT_MS * TAU)) : 1;
+    const hs = (1.5 + (charge / 100) * 1.9) * beatPulse * dpr;
+    const hc = charge >= 80 ? "#ffd166" : charge >= 40 ? "#ff5d8f" : "#7a3552";
+    drawHeart2(ctx, W / 2, 64 * dpr, hs, hc, 30 + charge * 0.3);
+    ctx.fillStyle = "rgba(253,243,246,0.85)";
+    ctx.font = `700 ${12 * dpr}px system-ui`;
+    ctx.textAlign = "center";
+    ctx.fillText("S H A R E D   H E A R T", W / 2, 120 * dpr);
+
+    // Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy; p.vy += 0.03 * dpr; p.life -= 0.022;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      ctx.globalAlpha = p.life;
+      drawHeart2(ctx, p.x, p.y, p.s * dpr, p.color);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function updateMeter() { $("hs-meter-fill").style.width = `${Math.round(charge)}%`; }
+
+  let fbTimeout = null;
+  function feedback(text, color, big) {
+    const el = $("hs-feedback");
+    el.textContent = text;
+    el.style.color = color;
+    el.classList.toggle("countdown", !!big);
+    el.classList.remove("show");
+    void el.offsetWidth;
+    el.classList.add("show");
+    clearTimeout(fbTimeout);
+    fbTimeout = setTimeout(() => el.classList.remove("show"), big ? 800 : 500);
+  }
+
+  /* ---------------- ending ---------------- */
+  function showEnd() {
+    innerShow($("view-heart"), "hs-end");
+    const pct = Math.round(charge);
+    // count-up
+    let shown = 0;
+    const countTimer = setInterval(() => {
+      shown = Math.min(pct, shown + 2);
+      $("hs-end-score").textContent = `${shown}%`;
+      if (shown >= pct) clearInterval(countTimer);
+    }, 24);
+    $("hs-end-emoji").textContent = pct >= 80 ? "💗" : pct >= 45 ? "💓" : "💔";
+    $("hs-end-title").textContent = pct >= 80 ? "HEARTS ALIGNED" : pct >= 45 ? "FINDING THE RHYTHM" : "DIFFERENT TEMPI";
+    $("hs-end-verdict").textContent =
+      pct >= 80 ? `${syncCount} perfect syncs and a best streak of ${bestStreak}. Somewhere around beat 20 you stopped being two players.` :
+      pct >= 45 ? `${syncCount} syncs. The heart flickered, then caught — like every real rhythm, it needed a few missed beats.` :
+      "The heart never quite caught fire tonight. It happens. The beat will still be here tomorrow.";
+    $("hs-coda-text").textContent = "“Two hearts rarely beat as one on the first try. The trick isn't matching the rhythm — it's staying close enough to find it again.”";
+    $("hs-coda-prompt").textContent = "💬 Tell your partner about a moment when you two were perfectly in sync — on or off the screen.";
+    addArtifact({ icon: pct >= 45 ? "💓" : "🌙", label: `Heart sync · ${pct}%`, game: "heart-sync" });
+    SFX.win();
+    FX.confetti({ count: 120, power: 1.3 });
+    FX.boost(1.5);
+  }
+
+  return { enter };
+})();
+/* ============================================================
+   🪞 MIRROR ROUND — predict & reveal among floating glass
+   mirrors. Secret answer → secret guess → simultaneous flip.
+   Ends with the Simultaneous Draw, pressed into the scrapbook.
+   ============================================================ */
+const MirrorGame = (() => {
+  let chan = null, myName = "", announce, onPartner, partnerName = null, announceTimer = null;
+
+  const QUESTIONS = [
+    { emoji: "🍳", text: "It's a slow Sunday morning with nowhere to be. What are you making?",
+      options: ["Pancakes, obviously", "Just really good coffee", "A full spread — go big", "We're going out, I don't cook"] },
+    { emoji: "🧳", text: "One free plane ticket, leaving tomorrow, no planning allowed. You pick…",
+      options: ["Somewhere with mountains", "A city I've never seen", "A beach, a book, done", "Wherever you once said you loved"] },
+    { emoji: "😤", text: "When you're stressed, what actually helps — honestly?",
+      options: ["Being left alone a bit", "Talking it out immediately", "Doing something physical", "A hug, no words needed"] },
+    { emoji: "🎁", text: "Which gift would secretly mean the most to you?",
+      options: ["Something handmade", "A plan for a whole day together", "Words — a real letter", "That thing I mentioned once"] }
+  ];
+  const DRAW_SECONDS = 60;
+
+  let q = 0, myAnswer = null, myGuess = null, mirrors = 0, ended = false;
+  let drawTimer = null, myNote = null;
+
+  function enter() {
+    const room = getRoom();
+    $("mr-lobby-room").textContent = `ROOM ${room}`;
+    ({ chan, myName, announce, onPartner } = joinRoom(room, "mirror-round"));
+    partnerName = null; q = 0; mirrors = 0; ended = false; myNote = null;
+    $("mr-lobby-status").textContent = "Waiting for your partner… same file, second tab, pick 🪞 Mirror Round.";
+    $("mr-lobby-status").classList.add("waiting");
+    $("btn-mr-start").disabled = true;
+    innerShow($("view-mirror"), "mr-lobby");
+    lightMirrors(0);
+
+    onPartner((name) => {
+      partnerName = name;
+      $("mr-lobby-status").classList.remove("waiting");
+      $("mr-lobby-status").textContent = `${name} is here 💞`;
+      $("btn-mr-start").disabled = false;
+      SFX.sync();
+      FX.confetti({ count: 26, power: 0.7 });
+    });
+    announce();
+    clearInterval(announceTimer);
+    announceTimer = setInterval(announce, 2000);
+
+    chan.on((msg) => {
+      if (msg.__local) return;
+      if (msg.event === "begin") beginGame();
+    });
+  }
+
+  $("btn-mr-start").addEventListener("click", () => {
+    ensureAudio(); SFX.good(); FX.boost(1.2);
+    chan.send("begin", {});
+    beginGame();
+  });
+
+  function beginGame() {
+    if (!$("mr-game").classList.contains("hidden")) return;
+    innerShow($("view-mirror"), "mr-game");
+    renderQuestion();
+  }
+
+  function renderQuestion() {
+    const def = QUESTIONS[q];
+    $("mr-hud-round").textContent = `QUESTION ${q + 1} / ${QUESTIONS.length}`;
+    $("mr-hud-phase").textContent = "ANSWER";
+    $("mr-hud-mirrors").textContent = `🪞 ${mirrors}`;
+    $("mr-q-emoji").textContent = def.emoji;
+    $("mr-q-text").textContent = def.text;
+    $("mr-status").innerHTML = "Answer about <b>yourself</b> first. 🤫";
+    $("mr-status").classList.add("waiting");
+    const grid = $("mr-options");
+    grid.innerHTML = "";
+    def.options.forEach((opt, i) => {
+      const b = document.createElement("button");
+      b.className = "opt-btn";
+      b.style.animationDelay = `${i * 0.07}s`;
+      b.innerHTML = `<span class="opt-dot"></span>${esc(opt)}`;
+      b.addEventListener("click", () => answerSelf(opt, b));
+      grid.appendChild(b);
+    });
+  }
+
+  async function answerSelf(opt, btn) {
+    myAnswer = opt;
+    SFX.tap();
+    btn.classList.add("opt-picked");
+    $("mr-options").innerHTML = "";
+    $("mr-status").innerHTML = "Locked in. 🔒 Waiting for your partner's secret answer…";
+    const { theirs } = await lockStep(chan, `a${q}`, opt);
+    renderGuess(theirs);
+  }
+
+  function renderGuess(partnerAnswer) {
+    const def = QUESTIONS[q];
+    $("mr-hud-phase").textContent = "GUESS";
+    $("mr-status").innerHTML = `Now — what did <b>${esc(partnerName || "your partner")}</b> answer? 🔮`;
+    $("mr-status").classList.remove("waiting");
+    const grid = $("mr-options");
+    grid.innerHTML = "";
+    def.options.forEach((opt, i) => {
+      const b = document.createElement("button");
+      b.className = "opt-btn guess";
+      b.style.animationDelay = `${i * 0.07}s`;
+      b.innerHTML = `<span class="opt-dot"></span>${esc(opt)}`;
+      b.addEventListener("click", () => guessPartner(opt, partnerAnswer, b));
+      grid.appendChild(b);
+    });
+  }
+
+  async function guessPartner(opt, partnerAnswer, btn) {
+    myGuess = opt;
+    SFX.tap();
+    btn.classList.add("opt-picked");
+    $("mr-options").innerHTML = "";
+    $("mr-status").innerHTML = "Guess sealed. 🎭 Waiting for their guess… then the reveal.";
+    $("mr-status").classList.add("waiting");
+    const { theirs } = await lockStep(chan, `g${q}`, opt);
+    reveal(partnerAnswer, theirs);
+  }
+
+  /* ---------------- reveal ---------------- */
+  function reveal(partnerAnswer, partnerGuess) {
+    const matched = myGuess === partnerAnswer;
+    const theyMatched = partnerGuess === myAnswer;
+    if (matched) mirrors += 1;
+    lightMirrors(mirrors);
+    SFX.reveal();
+
+    $("mr-rv-mine-who").textContent = `${myName} (you)`;
+    $("mr-rv-mine").textContent = myAnswer;
+    $("mr-rv-theirs-who").textContent = partnerName || "Partner";
+    $("mr-rv-theirs").textContent = partnerAnswer;
+
+    const verdict = $("mr-rv-verdict");
+    const sub = $("mr-rv-sub");
+    if (matched && theyMatched) {
+      verdict.className = "verdict match";
+      verdict.textContent = "🪞 DOUBLE MIRROR — you both read each other perfectly.";
+      sub.textContent = "Take a second. That doesn't happen every day.";
+      FX.confetti({ count: 80, power: 1.2 });
+      FX.boost(1.2);
+      SFX.win();
+    } else if (matched || theyMatched) {
+      verdict.className = "verdict match";
+      verdict.textContent = matched
+        ? `🪞 MIRROR! You knew ${partnerName || "them"} would say that.`
+        : `🪞 MIRROR! ${partnerName || "They"} knew exactly what you'd say.`;
+      sub.textContent = matched ? "Tell them how you knew." : "Ask them how they knew.";
+      FX.confetti({ count: 40 });
+    } else {
+      verdict.className = "verdict spark";
+      verdict.textContent = "✨ A SPARK — neither guessed right. Perfect.";
+      sub.textContent = "Tell each other why. The why is the whole point.";
+      FX.flash("rgba(183,140,255,0.12)");
+    }
+
+    $("mr-flip-mine").classList.remove("flipped");
+    $("mr-flip-theirs").classList.remove("flipped");
+    innerShow($("view-mirror"), "mr-reveal");
+    setTimeout(() => $("mr-flip-mine").classList.add("flipped"), 420);
+    setTimeout(() => $("mr-flip-theirs").classList.add("flipped"), 780);
+
+    $("btn-mr-next").textContent = q < QUESTIONS.length - 1 ? "Next question →" : "To the Simultaneous Draw ⚡";
+    $("btn-mr-next").disabled = false;
+  }
+
+  function lightMirrors(n) {
+    document.querySelectorAll("#mr-meter .mirror-dot").forEach((el, i) => el.classList.toggle("lit", i < n));
+  }
+
+  $("btn-mr-next").addEventListener("click", async () => {
+    SFX.tap();
+    if (q < QUESTIONS.length - 1) {
+      q += 1;
+      innerShow($("view-mirror"), "mr-game");
+      renderQuestion();
+    } else {
+      $("btn-mr-next").disabled = true;
+      $("btn-mr-next").textContent = "Waiting for partner…";
+      await lockStep(chan, "draw-ready", true);
+      startDraw();
+    }
+  });
+
+  /* ---------------- simultaneous draw ---------------- */
+  function startDraw() {
+    innerShow($("view-mirror"), "mr-draw");
+    $("mr-draw-input").value = "";
+    $("btn-mr-seal").disabled = false;
+    $("mr-draw-status").textContent = "";
+    let t = DRAW_SECONDS;
+    $("mr-draw-timer").textContent = fmtTime(t);
+    drawTimer = setInterval(() => {
+      t -= 1;
+      $("mr-draw-timer").textContent = fmtTime(Math.max(0, t));
+      if (t <= 10 && t > 0) SFX.tick();
+      if (t <= 0) sealDraw();
+    }, 1000);
+  }
+
+  async function sealDraw() {
+    if (myNote !== null) return;
+    clearInterval(drawTimer);
+    myNote = ($("mr-draw-input").value || "").trim() || "…(the card stayed blank — some things need more than 60 seconds)";
+    $("btn-mr-seal").disabled = true;
+    $("mr-draw-status").innerHTML = "Sealed. 💌 Waiting for their card…";
+    SFX.tap();
+    const { theirs } = await lockStep(chan, "draw", myNote);
+    showDrawReveal(theirs);
+  }
+  $("btn-mr-seal").addEventListener("click", sealDraw);
+
+  function showDrawReveal(theirNote) {
+    if (ended) return;
+    ended = true;
+    innerShow($("view-mirror"), "mr-end");
+    $("mr-dc-mine-who").textContent = `${myName} wrote`;
+    $("mr-dc-mine").textContent = `“${myNote}”`;
+    $("mr-dc-theirs-who").textContent = `${partnerName || "Your partner"} wrote`;
+    $("mr-dc-theirs").textContent = `“${theirNote}”`;
+    $("mr-end-mirrors").textContent = "🪞".repeat(Math.max(1, mirrors)) + `  ${mirrors}/${QUESTIONS.length} mirrors`;
+    $("mr-end-verdict").textContent =
+      mirrors >= 3 ? "You two are practically one mirror tonight." :
+      mirrors >= 1 ? "Some mirrors, some sparks — exactly what a good date is made of." :
+      "All sparks. You have wonderful things left to learn about each other — lucky you.";
+    addArtifact({ icon: "💌", label: `${myName}: ${myNote.slice(0, 42)}`, game: "mirror-round" });
+    addArtifact({ icon: "💌", label: `${partnerName || "Partner"}: ${theirNote.slice(0, 42)}`, game: "mirror-round" });
+    if (mirrors > 0) addArtifact({ icon: "🪞", label: `${mirrors}/${QUESTIONS.length} mirrors`, game: "mirror-round" });
+    SFX.reveal();
+    FX.confetti({ count: 110, power: 1.2 });
+    $("mr-flip-dc-mine").classList.remove("flipped");
+    $("mr-flip-dc-theirs").classList.remove("flipped");
+    setTimeout(() => $("mr-flip-dc-mine").classList.add("flipped"), 500);
+    setTimeout(() => $("mr-flip-dc-theirs").classList.add("flipped"), 1000);
+  }
+
+  return { enter };
+})();
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+window.addEventListener("DOMContentLoaded", () => {
+  FX.init();
+  Home.init();
+  showView("view-home", "home");
+});
+</script>
+</body>
+</html>

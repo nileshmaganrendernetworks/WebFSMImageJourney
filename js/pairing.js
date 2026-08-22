@@ -41,14 +41,15 @@ window.DN = (() => {
     const listeners = new Set();
 
     // Cross-window fallback for browsers with quirky BroadcastChannel
-    window.addEventListener("storage", (e) => {
+    const onStorage = (e) => {
       if (e.key !== storageKey || !e.newValue) return;
       try {
         const msg = JSON.parse(e.newValue);
         if (msg.__from === selfId) return;
         listeners.forEach((fn) => fn(msg));
       } catch (_) { /* ignore malformed */ }
-    });
+    };
+    window.addEventListener("storage", onStorage);
 
     return {
       __room: room,
@@ -60,7 +61,7 @@ window.DN = (() => {
         try { localStorage.setItem(storageKey, JSON.stringify(msg)); } catch (_) { /* quota */ }
         listeners.forEach((fn) => fn({ ...msg, __local: true }));
       },
-      close() { bc.close(); }
+      close() { window.removeEventListener("storage", onStorage); bc.close(); }
     };
   }
 

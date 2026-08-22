@@ -129,7 +129,7 @@
       setTimeout(() => { show("screen-game"); beginRound(); }, 1400);
     }
     if (msg.event === "solved") onSolved(msg.payload.round, false);
-    if (msg.event === "wrong") flashScore(msg.payload.delta);
+    if (msg.event === "score") flashScore(msg.payload.total);
     if (msg.event === "gateChoice") onGateChoice(msg.payload.choice, false);
   });
 
@@ -196,10 +196,11 @@
   function addScore(delta) {
     score = Math.max(0, score + delta);
     $("hud-score").textContent = `${score} pts`;
-    if (role === "console") chan.send("wrong", { delta: 0 }); // keep HUD in sync
+    if (role === "console") chan.send("score", { total: score }); // keep both HUDs in sync
   }
 
-  function flashScore() {
+  function flashScore(total) {
+    if (typeof total === "number") score = total;
     $("hud-score").textContent = `${score} pts`;
   }
 

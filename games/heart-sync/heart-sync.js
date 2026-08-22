@@ -222,16 +222,13 @@
     }
   }
 
-  let partnerDone = false, iDone = false;
+  // The song ends when either side's frame loop passes the last beat (or the
+  // partner's "done" event arrives) — a short grace period lets late syncs land.
   function maybeEnd() {
     if (ended) return;
-    iDone = true;
-    if (iDone) {
-      // Wait a beat for partner "done"; end regardless after short grace
-      setTimeout(showEnd, 1200);
-      ended = true;
-      cancelAnimationFrame(rafId);
-    }
+    ended = true;
+    cancelAnimationFrame(rafId);
+    setTimeout(showEnd, 1200);
   }
 
   /* ---------------- rendering ---------------- */

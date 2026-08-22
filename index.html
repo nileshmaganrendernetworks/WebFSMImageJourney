@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Date Night Arcade 💕</title>
+<link rel="stylesheet" href="css/main.css" />
+<style>
+  .chapter-map { display: flex; flex-direction: column; gap: 10px; }
+  .chapter-row { display: flex; align-items: center; gap: 12px; font-size: 0.95rem; color: var(--ink-dim); }
+  .chapter-row .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .chapter-row .dot.done { background: var(--rose); box-shadow: 0 0 12px var(--rose); }
+  .chapter-row .dot.now { background: var(--gold); box-shadow: 0 0 12px var(--gold); animation: pulse 1.6s infinite; }
+  .chapter-row .dot.todo { background: rgba(255,255,255,0.18); }
+  .game-list { display: flex; flex-direction: column; gap: 14px; }
+  .game-card { display: flex; gap: 16px; align-items: center; text-decoration: none; color: inherit; transition: transform .12s ease, border-color .12s ease; }
+  .game-card:hover { transform: translateY(-2px); border-color: rgba(255,158,187,.4); }
+  .game-card .icon { font-size: 2.2rem; }
+  .game-card h3 { font-size: 1.1rem; margin-bottom: 4px; }
+  .game-card p { font-size: 0.86rem; color: var(--ink-dim); line-height: 1.45; }
+  .game-card .mins { margin-left: auto; font-size: 0.75rem; color: var(--gold); white-space: nowrap; }
+  #pair-row { display: flex; gap: 10px; }
+  #pair-row input { text-transform: uppercase; letter-spacing: 0.35em; text-align: center; font-size: 1.5rem; font-weight: 800; }
+  footer { margin-top: 10px; text-align: center; font-size: 0.75rem; color: rgba(201,169,187,0.6); }
+</style>
+</head>
+<body>
+<div class="screen">
+  <h1 class="logo">💕 DATE NIGHT ARCADE</h1>
+  <p class="tagline">Two players. One screen each. Real conversations.<br/>
+  Play on one device (two tabs) for this prototype — pair with a room code.</p>
+
+  <div class="card">
+    <label>Pair up</label>
+    <div id="pair-row" style="margin-top:10px;">
+      <input id="room-input" type="text" maxlength="4" placeholder="••••" autocomplete="off" />
+      <button id="random-room" class="ghost" title="New room code">🎲</button>
+    </div>
+    <p class="subtle" style="margin-top:10px;">Both of you enter the <em>same 4-letter code</em>, then open the same game. Room: <b id="room-echo">—</b></p>
+  </div>
+
+  <div class="card">
+    <label>Tonight's journey</label>
+    <div class="chapter-map" style="margin-top:12px;">
+      <div class="chapter-row"><span class="dot done"></span> Chapter 1 · <b>Icebreaker</b> — play, laugh, sync up</div>
+      <div class="chapter-row"><span class="dot now"></span> Chapter 2 · <b>Discovery</b> — what do you really know?</div>
+      <div class="chapter-row"><span class="dot todo"></span> Chapter 3 · <b>Vulnerability</b> — 🔒 unlocks after tonight</div>
+    </div>
+  </div>
+
+  <div class="game-list">
+    <a class="card game-card" href="games/signal-decoder/index.html">
+      <span class="icon">🔐</span>
+      <span><h3>Signal Decoder</h3><p>One of you sees the console. One of you holds the manual. Neither sees both — talk or fail. <em>Chapter 1.</em></p></span>
+      <span class="mins">~6 min</span>
+    </a>
+    <a class="card game-card" href="games/heart-sync/index.html">
+      <span class="icon">💓</span>
+      <span><h3>Heart Sync</h3><p>Cues fly down your own lane. Tap on the beat, together, and charge one shared heart. <em>Chapter 1.</em></p></span>
+      <span class="mins">~4 min</span>
+    </a>
+    <a class="card game-card" href="games/mirror-round/index.html">
+      <span class="icon">🪞</span>
+      <span><h3>Mirror Round</h3><p>Answer secretly. Guess your partner. Reveal at the same time. Ends with the Simultaneous Draw. <em>Chapter 2.</em></p></span>
+      <span class="mins">~8 min</span>
+    </a>
+  </div>
+
+  <div class="card">
+    <label>📖 Your scrapbook</label>
+    <div id="scrapbook" style="margin-top:14px;"></div>
+  </div>
+
+  <footer>Prototype build · pairing runs locally (BroadcastChannel) · production will pair phones over the internet</footer>
+</div>
+
+<script src="js/pairing.js"></script>
+<script>
+  const roomInput = document.getElementById("room-input");
+  const roomEcho = document.getElementById("room-echo");
+  const saved = localStorage.getItem("dn:room") || DN.makeRoomCode();
+  roomInput.value = saved;
+  roomEcho.textContent = saved;
+
+  roomInput.addEventListener("input", () => {
+    const v = roomInput.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4);
+    roomInput.value = v;
+    if (v.length === 4) { localStorage.setItem("dn:room", v); roomEcho.textContent = v; }
+  });
+  document.getElementById("random-room").addEventListener("click", () => {
+    const v = DN.makeRoomCode();
+    roomInput.value = v; localStorage.setItem("dn:room", v); roomEcho.textContent = v;
+  });
+
+  // Scrapbook
+  const book = DN.getScrapbook();
+  const sb = document.getElementById("scrapbook");
+  if (book.length === 0) {
+    sb.innerHTML = '<p class="subtle">Empty so far. Artifacts you earn tonight will live here — a postcard from every game you finish together.</p>';
+  } else {
+    sb.innerHTML = '<div class="artifact-grid">' + book.slice(-9).map(a =>
+      `<div class="artifact">${a.icon}<span>${DN.esc(a.label)}</span></div>`).join("") + "</div>";
+  }
+</script>
+</body>
+</html>

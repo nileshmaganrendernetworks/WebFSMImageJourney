@@ -1,0 +1,190 @@
+/* ============================================================
+   Date Night Arcade — shared theme
+   Dark, warm, cinematic. One shared vocabulary across all games.
+   ============================================================ */
+
+:root {
+  --bg-0: #160a14;
+  --bg-1: #22102a;
+  --bg-2: #2f1a3e;
+  --card: rgba(255, 255, 255, 0.055);
+  --card-border: rgba(255, 255, 255, 0.10);
+  --ink: #fdf3f6;
+  --ink-dim: #c9a9bb;
+  --rose: #ff5d8f;
+  --rose-soft: #ff9ebb;
+  --peach: #ffb26b;
+  --gold: #ffd166;
+  --mint: #7bf1c3;
+  --violet: #b78cff;
+  --danger: #ff6b6b;
+  --radius: 18px;
+  --font: "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  min-height: 100dvh;
+  background:
+    radial-gradient(1200px 800px at 80% -10%, rgba(255, 93, 143, 0.16), transparent 60%),
+    radial-gradient(900px 700px at -10% 110%, rgba(183, 140, 255, 0.14), transparent 60%),
+    linear-gradient(160deg, var(--bg-0), var(--bg-1) 55%, var(--bg-0));
+  color: var(--ink);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+body { display: flex; flex-direction: column; align-items: center; }
+
+button {
+  font-family: var(--font);
+  cursor: pointer;
+  border: none;
+  border-radius: 999px;
+  padding: 14px 30px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #2a0716;
+  background: linear-gradient(135deg, var(--rose), var(--peach));
+  box-shadow: 0 6px 24px rgba(255, 93, 143, 0.35);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+button:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(255, 93, 143, 0.5); }
+button:active { transform: translateY(0) scale(0.97); }
+button:disabled { filter: grayscale(0.7) brightness(0.6); cursor: not-allowed; transform: none; }
+button.ghost {
+  background: transparent;
+  color: var(--rose-soft);
+  box-shadow: none;
+  border: 1.5px solid rgba(255, 158, 187, 0.45);
+}
+button.ghost:hover { border-color: var(--rose-soft); }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 22px;
+  backdrop-filter: blur(6px);
+}
+
+.screen {
+  width: 100%;
+  max-width: 520px;
+  padding: 22px 18px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.hidden { display: none !important; }
+
+h1.logo {
+  font-size: 2rem;
+  text-align: center;
+  letter-spacing: 0.06em;
+  background: linear-gradient(120deg, var(--rose-soft), var(--peach), var(--violet));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.tagline { text-align: center; color: var(--ink-dim); font-size: 0.98rem; line-height: 1.5; }
+
+label { font-size: 0.85rem; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.12em; }
+
+input[type="text"], textarea {
+  width: 100%;
+  font-family: var(--font);
+  font-size: 1.15rem;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.30);
+  border: 1.5px solid var(--card-border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+input[type="text"]:focus, textarea:focus { border-color: var(--rose); }
+
+.hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--ink-dim);
+}
+.hud .pill {
+  background: rgba(0, 0, 0, 0.30);
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-variant-numeric: tabular-nums;
+}
+.hud .pill.hot { color: var(--gold); border-color: rgba(255, 209, 102, 0.4); }
+
+.room-badge {
+  align-self: center;
+  font-size: 0.8rem;
+  letter-spacing: 0.25em;
+  color: var(--rose-soft);
+  border: 1px dashed rgba(255, 158, 187, 0.4);
+  border-radius: 999px;
+  padding: 6px 16px;
+}
+
+.partner-status {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--mint);
+  min-height: 1.2em;
+}
+.partner-status.waiting { color: var(--ink-dim); animation: pulse 1.6s ease-in-out infinite; }
+
+@keyframes pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+
+.hearts { text-align: center; font-size: 1.6rem; letter-spacing: 0.15em; }
+
+.score-line {
+  text-align: center;
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: var(--gold);
+  text-shadow: 0 0 24px rgba(255, 209, 102, 0.45);
+}
+
+.subtle { color: var(--ink-dim); font-size: 0.92rem; line-height: 1.55; text-align: center; }
+
+.big-emoji { font-size: 3rem; text-align: center; }
+
+.fade-in { animation: fadeIn 0.45s ease both; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+.shake { animation: shake 0.4s ease; }
+@keyframes shake { 0%, 100% { transform: none; } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+/* Simultaneous reveal flip */
+.flip-wrap { perspective: 900px; }
+.flip-inner { transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.3, 1.1); transform-style: preserve-3d; position: relative; }
+.flipped { transform: rotateY(180deg); }
+.flip-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.flip-back { position: absolute; inset: 0; transform: rotateY(180deg); }
+
+/* Scrapbook artifacts */
+.artifact-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.artifact {
+  aspect-ratio: 1;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 1.8rem;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--card-border);
+}
+.artifact span { font-size: 0.62rem; color: var(--ink-dim); text-align: center; padding: 0 4px; letter-spacing: 0.03em; }

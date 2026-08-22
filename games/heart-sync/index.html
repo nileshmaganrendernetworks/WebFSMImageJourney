@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Heart Sync 💓 — Date Night Arcade</title>
+<link rel="stylesheet" href="../../css/main.css" />
+<style>
+  #stage { position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--card-border); background: radial-gradient(600px 400px at 50% 0%, rgba(255,93,143,.10), transparent), rgba(0,0,0,.35); }
+  canvas { display: block; width: 100%; touch-action: manipulation; }
+  .lane-label { position: absolute; top: 10px; font-size: .72rem; letter-spacing: .2em; color: var(--ink-dim); text-transform: uppercase; }
+  #meter-wrap { height: 16px; border-radius: 999px; background: rgba(0,0,0,.35); border: 1px solid var(--card-border); overflow: hidden; }
+  #meter-fill { height: 100%; width: 0%; border-radius: 999px; background: linear-gradient(90deg, var(--rose), var(--peach), var(--gold)); transition: width .25s ease; box-shadow: 0 0 16px rgba(255,93,143,.6); }
+  #feedback { position: absolute; left: 0; right: 0; top: 38%; text-align: center; font-size: 1.6rem; font-weight: 800; pointer-events: none; opacity: 0; transition: opacity .15s ease; text-shadow: 0 2px 18px rgba(0,0,0,.6); }
+  #feedback.show { opacity: 1; }
+  .countdown { font-size: 3.4rem; }
+</style>
+</head>
+<body>
+<div class="screen">
+
+  <div id="screen-lobby" class="screen" style="padding:0;">
+    <h1 class="logo">💓 HEART SYNC</h1>
+    <p class="tagline">Cues fly down your lane.<br/>Tap them on the line — your partner is doing the same on theirs.<br/>
+    Tap <b>within a heartbeat of each other</b> and the shared heart surges.</p>
+    <div class="room-badge" id="lobby-room">ROOM —</div>
+    <p class="partner-status waiting" id="lobby-status">Waiting for your partner to open this game…</p>
+    <div class="card subtle">🎧 Best with sound on. A soft beat marks the pulse; your lane is the <b>rose</b> one, theirs is <b>violet</b>. You only see your own lane — call out your misses, celebrate their saves.</div>
+    <button id="btn-start" disabled>Feel the beat</button>
+    <a href="../../index.html" class="subtle" style="text-align:center;">← back to the arcade</a>
+  </div>
+
+  <div id="screen-game" class="screen hidden" style="padding:0;">
+    <div class="hud">
+      <span class="pill" id="hud-beat">Beat 0</span>
+      <span class="pill hot" id="hud-streak">🔥 0</span>
+      <span class="pill" id="hud-syncs">💞 0 syncs</span>
+    </div>
+    <div id="meter-wrap"><div id="meter-fill"></div></div>
+    <div id="stage">
+      <canvas id="cv" width="440" height="560"></canvas>
+      <span class="lane-label" style="left:16px;">YOU</span>
+      <span class="lane-label" style="right:16px;">PARTNER</span>
+      <div id="feedback"></div>
+    </div>
+    <p class="subtle" id="game-note">Tap your cues as they cross the glowing line. 💗</p>
+  </div>
+
+  <div id="screen-end" class="screen hidden fade-in" style="padding:0;">
+    <div class="big-emoji" id="end-emoji">💗</div>
+    <h1 class="logo" style="font-size:1.6rem;" id="end-title">HEARTS ALIGNED</h1>
+    <div class="score-line" id="end-score">0%</div>
+    <p class="subtle" id="end-verdict"></p>
+    <div class="card" style="text-align:center;">
+      <p style="font-size:1.05rem; line-height:1.6; font-style:italic;" id="coda-text"></p>
+      <p class="subtle" style="margin-top:14px; color:var(--rose-soft);" id="coda-prompt"></p>
+    </div>
+    <p class="subtle">💌 A postcard was pressed into <a href="../../index.html" style="color:var(--rose-soft);">your scrapbook</a>.</p>
+    <button onclick="location.href='../../index.html'">Back to the arcade</button>
+  </div>
+
+</div>
+
+<script src="../../js/pairing.js"></script>
+<script src="heart-sync.js"></script>
+</body>
+</html>

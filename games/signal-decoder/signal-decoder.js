@@ -21,7 +21,14 @@
       label: "The Four Lights",
       hint: "Four dead lights. The manual knows their waking order.",
       build(seed) {
-        const order = DN.shuffle([0, 1, 2, 3]);
+        // Seeded shuffle so both screens agree on the order (same room + round).
+        const order = [0, 1, 2, 3];
+        let s = seed || 1;
+        for (let i = order.length - 1; i > 0; i--) {
+          s = (s * 16807) % 2147483647;
+          const j = s % (i + 1);
+          [order[i], order[j]] = [order[j], order[i]];
+        }
         return { lit: [false, false, false, false], order, progress: 0 };
       },
       manual(state) {

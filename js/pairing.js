@@ -51,6 +51,8 @@ window.DN = (() => {
     });
 
     return {
+      __room: room,
+      __game: game,
       on(fn) { listeners.add(fn); },
       send(event, payload = {}) {
         const msg = { __from: selfId, event, payload, t: Date.now() };
@@ -87,28 +89,61 @@ window.DN = (() => {
 
   /* ---------- lock-step primitive ----------
      Both sides contribute a value; resolves when both arrived.
-     Used for: secret answers, readiness flags, consent gates.      */
+     Used for: secret answers, readiness flags, consent gates.
+     Values are retained in a per-room pending store (and re-broadcast
+     until acked) so neither side's contribution can be missed, no
+     matter who commits first.                                     */
+  function pendingKey(chanName, key) { return `${chanName}:pending:${key}`; }
+
   function lockStep(chan, key, myValue) {
     return new Promise((resolve) => {
-      let mine = myValue;
+      const chanName = `dn:${chan.__room}:${chan.__game}`;
+      const storeKey = pendingKey(chanName, key);
+      const mine = myValue;
       let theirs;
       let done = false;
+      let retries = 0;
+
+      const readStore = () => {
+        try {
+          const stored = JSON.parse(localStorage.getItem(storeKey)) || {};
+          if (stored.theirs !== undefined && theirs === undefined) theirs = stored.theirs;
+        } catch (_) { /* ignore */ }
+      };
 
       const tryResolve = () => {
-        if (done || theirs === undefined || mine === undefined) return;
+        if (done || theirs === undefined) return;
         done = true;
+        clearInterval(retryTimer);
+        try { localStorage.removeItem(storeKey); } catch (_) { /* ignore */ }
+        chan.send(`stepAck:${key}`, {});
         resolve({ mine, theirs });
       };
 
       chan.on((msg) => {
         if (msg.event === `step:${key}` && !msg.__local) {
           theirs = msg.payload.value;
+          try { localStorage.setItem(storeKey, JSON.stringify({ theirs })); } catch (_) { /* ignore */ }
           tryResolve();
+        }
+        if (msg.event === `stepAck:${key}` && !msg.__local) {
+          clearInterval(retryTimer);
         }
       });
 
+      // Check if partner already contributed before we subscribed
+      readStore();
       chan.send(`step:${key}`, { value: mine });
       tryResolve();
+
+      // Re-broadcast until partner acks or we resolve (covers races where
+      // both sides sent before the other's listener was attached).
+      const retryTimer = setInterval(() => {
+        if (done || retries++ > 40) { clearInterval(retryTimer); return; }
+        readStore();
+        tryResolve();
+        if (!done) chan.send(`step:${key}`, { value: mine });
+      }, 250);
     });
   }
 

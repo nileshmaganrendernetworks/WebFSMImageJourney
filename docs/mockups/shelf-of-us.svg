@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640" font-family="'Avenir Next','Segoe UI',sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#160a14"/>
+      <stop offset="1" stop-color="#2f1a3e"/>
+    </linearGradient>
+    <linearGradient id="woodL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5a3a52"/>
+      <stop offset="1" stop-color="#3d2540"/>
+    </linearGradient>
+    <linearGradient id="woodR" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a3a63"/>
+      <stop offset="1" stop-color="#322348"/>
+    </linearGradient>
+    <radialGradient id="glowHeart" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff5d8f" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#ff5d8f" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="640" fill="url(#bg)"/>
+
+  <text x="600" y="64" text-anchor="middle" font-size="34" font-weight="800" fill="#fdf3f6" letter-spacing="6">SHELF OF US</text>
+  <text x="600" y="96" text-anchor="middle" font-size="16" fill="#c9a9bb">Each of you secretly placed five objects that mean "me". Tonight, the shelves open.</text>
+
+  <!-- LEFT SHELF -->
+  <g>
+    <rect x="70" y="130" width="460" height="400" rx="22" fill="url(#woodL)" stroke="#ff9ebb" stroke-opacity="0.35"/>
+    <text x="300" y="166" text-anchor="middle" font-size="15" letter-spacing="4" fill="#ff9ebb">ALEX'S SHELF</text>
+    <!-- shelf lines -->
+    <line x1="95" y1="290" x2="505" y2="290" stroke="#ffffff" stroke-opacity="0.12" stroke-width="3"/>
+    <line x1="95" y1="420" x2="505" y2="420" stroke="#ffffff" stroke-opacity="0.12" stroke-width="3"/>
+    <!-- objects row 1 -->
+    <text x="160" y="262" font-size="64" text-anchor="middle">🧸</text>
+    <text x="300" y="262" font-size="64" text-anchor="middle">⛵</text>
+    <text x="440" y="262" font-size="64" text-anchor="middle">📷</text>
+    <!-- objects row 2 -->
+    <text x="230" y="392" font-size="64" text-anchor="middle">🍜</text>
+    <text x="370" y="392" font-size="64" text-anchor="middle">🎧</text>
+    <!-- captions -->
+    <text x="160" y="330" font-size="13" text-anchor="middle" fill="#c9a9bb">the bear from age 6</text>
+    <text x="300" y="330" font-size="13" text-anchor="middle" fill="#ffd166">a paper boat ★ shared</text>
+    <text x="440" y="330" font-size="13" text-anchor="middle" fill="#c9a9bb">photos, always photos</text>
+    <text x="230" y="460" font-size="13" text-anchor="middle" fill="#c9a9bb">midnight noodles</text>
+    <text x="370" y="460" font-size="13" text-anchor="middle" fill="#c9a9bb">one song on repeat</text>
+  </g>
+
+  <!-- RIGHT SHELF -->
+  <g>
+    <rect x="670" y="130" width="460" height="400" rx="22" fill="url(#woodR)" stroke="#b78cff" stroke-opacity="0.4"/>
+    <text x="900" y="166" text-anchor="middle" font-size="15" letter-spacing="4" fill="#b78cff">SAM'S SHELF</text>
+    <line x1="695" y1="290" x2="1105" y2="290" stroke="#ffffff" stroke-opacity="0.12" stroke-width="3"/>
+    <line x1="695" y1="420" x2="1105" y2="420" stroke="#ffffff" stroke-opacity="0.12" stroke-width="3"/>
+    <text x="760" y="262" font-size="64" text-anchor="middle">🌵</text>
+    <text x="900" y="262" font-size="64" text-anchor="middle">⛵</text>
+    <text x="1040" y="262" font-size="64" text-anchor="middle">🗺️</text>
+    <text x="830" y="392" font-size="64" text-anchor="middle">☕</text>
+    <text x="970" y="392" font-size="64" text-anchor="middle">🧭</text>
+    <text x="760" y="330" font-size="13" text-anchor="middle" fill="#c9a9bb">a cactus named Greg</text>
+    <text x="900" y="330" font-size="13" text-anchor="middle" fill="#ffd166">a paper boat ★ shared</text>
+    <text x="1040" y="330" font-size="13" text-anchor="middle" fill="#c9a9bb">maps of nowhere yet</text>
+    <text x="830" y="460" font-size="13" text-anchor="middle" fill="#c9a9bb">coffee, black, twice</text>
+    <text x="970" y="460" font-size="13" text-anchor="middle" fill="#c9a9bb">always half-lost</text>
+  </g>
+
+  <!-- center connection -->
+  <circle cx="600" cy="330" r="90" fill="url(#glowHeart)"/>
+  <text x="600" y="322" font-size="52" text-anchor="middle">💞</text>
+  <text x="600" y="360" font-size="14" text-anchor="middle" fill="#fdf3f6">1 overlap · 8 stories</text>
+
+  <!-- prompt -->
+  <rect x="260" y="560" width="680" height="52" rx="26" fill="#ffffff" fill-opacity="0.06" stroke="#ffd166" stroke-opacity="0.4"/>
+  <text x="600" y="592" text-anchor="middle" font-size="17" fill="#ffd166">“You both chose the paper boat. Tell each other where it's going.”</text>
+</svg>

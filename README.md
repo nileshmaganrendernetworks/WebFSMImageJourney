@@ -1,5 +1,15 @@
 # WebFSMImageJourney
 
+> **Latest: 💕 [Date Night Arcade — Plan & Playable Prototypes](PLAN.md)** — a two-player,
+> browser-based date-night co-op game collection. Three playable prototypes
+> (🔐 Signal Decoder, 💓 Heart Sync, 🪞 Mirror Round), full game roster with visuals,
+> and the MVP roadmap. Serve this folder (`python3 -m http.server`) and open
+> `index.html` in two tabs to play.
+
+![Date Night Arcade](screenshots/01-arcade-home.png)
+
+---
+
 SOP: FSM-Guided UI Screenshot Tool
 
 1. Project Context

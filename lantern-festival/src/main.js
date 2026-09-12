@@ -127,7 +127,15 @@ const ui = {
 }
 
 function renderStartupError(message) {
-  ui.viewShell.innerHTML = `<article class="error-card"><h2>Unable to start the lantern festival</h2><p>${message}</p></article>`
+  ui.viewShell.innerHTML = ''
+  const card = document.createElement('article')
+  card.className = 'error-card'
+  const heading = document.createElement('h2')
+  heading.textContent = 'Unable to start the lantern festival'
+  const body = document.createElement('p')
+  body.textContent = message
+  card.append(heading, body)
+  ui.viewShell.append(card)
   ui.message.textContent = message
   window.__LANTERN_FESTIVAL_STARTUP_ERROR__ = message
 }

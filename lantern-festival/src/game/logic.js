@@ -333,6 +333,7 @@ export function resetToLastCheckpoint(state) {
   for (const playerId of ['A', 'B']) {
     setPlayerFeedback(state, playerId, 'Checkpoint reset', 'Returned to the latest lantern rest.')
   }
+  refreshWin(state)
 }
 
 export function restartState(state) {

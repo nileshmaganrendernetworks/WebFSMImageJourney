@@ -39,7 +39,8 @@ test('observer mode stays side by side and solves without console/network errors
   expect(layout.split(' ').length).toBeGreaterThanOrEqual(2)
 
   await page.getByRole('button', { name: /Watch full demo/i }).click()
-  await expect(page.getByText(/demo complete/i)).toBeVisible({ timeout: 30000 })
+  await page.waitForFunction(() => window.__LANTERN_FESTIVAL_SUMMARY__?.().win === true, null, { timeout: 40000 })
+  await expect(page.getByText(/demo complete/i)).toBeVisible()
   await expect(page.getByText(/Goal complete/i)).toBeVisible()
 
   const summary = await page.evaluate(() => window.__LANTERN_FESTIVAL_SUMMARY__())
@@ -84,4 +85,18 @@ test('touch-friendly controls work at mobile landscape width', async ({ page }) 
 
   await expect(page.getByText(/West Paper Wheel becomes solid/i)).toBeVisible()
   await expect(page.locator('#input-A')).toContainText(/tap/i)
+})
+
+test('startup fallback renders a readable error card when WebGL scene creation fails', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__LANTERN_FESTIVAL_FORCE_RENDERER_ERROR__ = true
+  })
+
+  await page.goto('/')
+
+  await expect(page.getByRole('heading', { name: /Unable to start the lantern festival/i })).toBeVisible()
+  await expect(page.getByText(/could not create a working WebGL scene/i)).toBeVisible()
+
+  const startupError = await page.evaluate(() => window.__LANTERN_FESTIVAL_STARTUP_ERROR__)
+  expect(startupError).toMatch(/could not create a working WebGL scene/i)
 })

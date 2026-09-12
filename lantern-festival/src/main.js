@@ -179,6 +179,9 @@ function startApp() {
     A: createFollowCamera(),
     B: createFollowCamera(),
   }
+  if (window.__LANTERN_FESTIVAL_FORCE_RENDERER_ERROR__) {
+    throw new Error('Forced renderer startup failure')
+  }
   const renderers = {
     A: createRenderer(document.querySelector('#canvas-A')),
     B: createRenderer(document.querySelector('#canvas-B')),
@@ -622,7 +625,7 @@ function startApp() {
       updateCamera(cameras[playerId], presentation.players[playerId])
       renderers[playerId].render(sceneParts.scene, cameras[playerId])
     }
-    window.setTimeout(() => animate(performance.now()), 16)
+    window.requestAnimationFrame(animate)
   }
 
   fullUi.watchDemo.addEventListener('click', startDemo)
@@ -705,7 +708,7 @@ function startApp() {
 
   resetPresentationToState()
   renderUi()
-  animate(performance.now())
+  window.requestAnimationFrame(animate)
   window.__LANTERN_FESTIVAL_STATE__ = state
   window.__LANTERN_FESTIVAL_SUMMARY__ = () => exportStateSummary(state)
   window.__LANTERN_FESTIVAL_PRESENTATION__ = () => ({

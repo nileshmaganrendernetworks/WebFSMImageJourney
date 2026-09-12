@@ -240,6 +240,8 @@ function startApp() {
     A: { width: 0, height: 0 },
     B: { width: 0, height: 0 },
   }
+  let animationFrameId = 0
+  let renderFailed = false
 
   const presentation = createPresentationState(state)
 
@@ -616,16 +618,32 @@ function startApp() {
     if (needsUiRefresh) renderUi()
   }
 
+  function handleRenderFailure(error) {
+    if (renderFailed) return
+    renderFailed = true
+    if (animationFrameId) window.cancelAnimationFrame(animationFrameId)
+    console.error(error)
+    renderStartupError('This activity could not create a working WebGL scene. Try a current browser with hardware acceleration enabled.')
+  }
+
   function animate(now = performance.now()) {
-    runDemoFrame(now)
-    tickPresentation(now)
-    syncScene(presentation, sceneParts)
-    for (const playerId of visiblePlayers()) {
-      resizeRenderer(playerId)
-      updateCamera(cameras[playerId], presentation.players[playerId])
-      renderers[playerId].render(sceneParts.scene, cameras[playerId])
+    if (renderFailed) return
+    try {
+      if (window.__LANTERN_FESTIVAL_FORCE_RENDER_ERROR__) {
+        throw new Error('Forced render loop failure')
+      }
+      runDemoFrame(now)
+      tickPresentation(now)
+      syncScene(presentation, sceneParts)
+      for (const playerId of visiblePlayers()) {
+        resizeRenderer(playerId)
+        updateCamera(cameras[playerId], presentation.players[playerId])
+        renderers[playerId].render(sceneParts.scene, cameras[playerId])
+      }
+      animationFrameId = window.requestAnimationFrame(animate)
+    } catch (error) {
+      handleRenderFailure(error)
     }
-    window.requestAnimationFrame(animate)
   }
 
   fullUi.watchDemo.addEventListener('click', startDemo)
@@ -660,7 +678,8 @@ function startApp() {
     renderUi()
   })
   fullUi.viewMode.addEventListener('change', () => {
-    fullUi.viewShell.className = `view-shell ${fullUi.viewMode.value === 'observer' ? 'observer' : `focus-${fullUi.viewMode.value}`}`
+    fullUi.viewShell.classList.remove('observer', 'focus-A', 'focus-B')
+    fullUi.viewShell.classList.add(fullUi.viewMode.value === 'observer' ? 'observer' : `focus-${fullUi.viewMode.value}`)
   })
 
   for (const button of document.querySelectorAll('[data-kind="act"]')) {
@@ -708,7 +727,7 @@ function startApp() {
 
   resetPresentationToState()
   renderUi()
-  window.requestAnimationFrame(animate)
+  animationFrameId = window.requestAnimationFrame(animate)
   window.__LANTERN_FESTIVAL_STATE__ = state
   window.__LANTERN_FESTIVAL_SUMMARY__ = () => exportStateSummary(state)
   window.__LANTERN_FESTIVAL_PRESENTATION__ = () => ({

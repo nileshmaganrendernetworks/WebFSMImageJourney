@@ -147,7 +147,8 @@ if (startupError) {
 } else {
   try {
     startApp()
-  } catch {
+  } catch (error) {
+    console.error(error)
     renderStartupError('This activity could not create a working WebGL scene. Try a current browser with hardware acceleration enabled.')
   }
 }
@@ -203,6 +204,10 @@ function startApp() {
     index: 0,
     waitUntil: 0,
     finished: false,
+  }
+  const canvasSizes = {
+    A: { width: 0, height: 0 },
+    B: { width: 0, height: 0 },
   }
 
   function inputLocked() {
@@ -351,6 +356,10 @@ function startApp() {
     const canvas = document.querySelector(`#canvas-${playerId}`)
     const { clientWidth, clientHeight } = canvas
     if (clientWidth === 0 || clientHeight === 0) return
+    const cached = canvasSizes[playerId]
+    if (cached.width === clientWidth && cached.height === clientHeight) return
+    cached.width = clientWidth
+    cached.height = clientHeight
     const renderer = renderers[playerId]
     renderer.setSize(clientWidth, clientHeight, false)
     cameras[playerId].aspect = clientWidth / clientHeight

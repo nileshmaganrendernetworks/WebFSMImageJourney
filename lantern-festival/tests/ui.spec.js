@@ -96,7 +96,9 @@ test('startup fallback renders a readable error card when WebGL scene creation f
   await expect(page.locator('.error-card p')).toContainText(/could not create a working WebGL scene/i)
 
   const startupError = await page.evaluate(() => window.__LANTERN_FESTIVAL_STARTUP_ERROR__)
+  const startupException = await page.evaluate(() => window.__LANTERN_FESTIVAL_STARTUP_EXCEPTION__)
   expect(startupError).toMatch(/could not create a working WebGL scene/i)
+  expect(startupException).toMatch(/Forced renderer startup failure/i)
 })
 
 test('render-loop failures also fall back to the readable error card', async ({ page }) => {
@@ -109,4 +111,6 @@ test('render-loop failures also fall back to the readable error card', async ({ 
 
   await expect(page.getByRole('heading', { name: /Unable to start the lantern festival/i })).toBeVisible()
   await expect(page.locator('.error-card p')).toContainText(/could not create a working WebGL scene/i)
+  const startupException = await page.evaluate(() => window.__LANTERN_FESTIVAL_STARTUP_EXCEPTION__)
+  expect(startupException).toMatch(/Forced render loop failure/i)
 })

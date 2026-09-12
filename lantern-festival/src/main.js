@@ -167,7 +167,7 @@ if (startupError) {
   try {
     startApp()
   } catch (error) {
-    console.error(error)
+    window.__LANTERN_FESTIVAL_STARTUP_EXCEPTION__ = error?.stack ?? String(error)
     renderStartupError('This activity could not create a working WebGL scene. Try a current browser with hardware acceleration enabled.')
   }
 }
@@ -622,7 +622,7 @@ function startApp() {
     if (renderFailed) return
     renderFailed = true
     if (animationFrameId) window.cancelAnimationFrame(animationFrameId)
-    console.error(error)
+    window.__LANTERN_FESTIVAL_STARTUP_EXCEPTION__ = error?.stack ?? String(error)
     renderStartupError('This activity could not create a working WebGL scene. Try a current browser with hardware acceleration enabled.')
   }
 

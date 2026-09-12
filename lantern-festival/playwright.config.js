@@ -11,7 +11,7 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: 'npm run preview',
+    command: 'npm run build && npm run preview',
     port: 4173,
     reuseExistingServer: false,
     timeout: 120000,

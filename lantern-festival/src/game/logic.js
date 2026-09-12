@@ -291,6 +291,12 @@ function lightBeacon(state, playerId) {
     return false
   }
 
+  if (state.beaconLit) {
+    setPlayerFeedback(state, playerId, 'Action', 'The festival beacon is already lit.')
+    state.message = 'The festival beacon is already guiding the moon bridge.'
+    return false
+  }
+
   state.beaconLit = true
   setPlayerFeedback(state, playerId, 'Action', 'Igniting the festival beacon and unfurling the moon bridge.')
   state.message = 'The moon bridge unfurls from the side terrace to the reunion court.'

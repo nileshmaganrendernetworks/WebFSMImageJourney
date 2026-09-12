@@ -106,6 +106,32 @@ test('demo script completes the level using legal moves only', () => {
   assert.equal(state.win, true)
 })
 
+test('beacon ignition becomes a no-op after the first success', () => {
+  const state = createInitialState()
+  moveToNeighbor(state, 'A', 'aLane')
+  moveToNeighbor(state, 'A', 'plaza')
+  moveToNeighbor(state, 'A', 'westBank')
+  moveToNeighbor(state, 'B', 'bLane')
+  moveToNeighbor(state, 'B', 'plaza')
+  moveToNeighbor(state, 'B', 'westBank')
+  performAction(state, 'A')
+  moveToNeighbor(state, 'B', 'west-center')
+  moveToNeighbor(state, 'B', 'westEast')
+  performAction(state, 'B')
+  moveToNeighbor(state, 'A', 'west-center')
+  moveToNeighbor(state, 'A', 'safeStone')
+  moveToNeighbor(state, 'B', 'eastCtrl')
+  performAction(state, 'A')
+  moveToNeighbor(state, 'A', 'east-center')
+  performAction(state, 'B')
+  moveToNeighbor(state, 'A', 'farStone')
+  moveToNeighbor(state, 'A', 'beacon')
+  performAction(state, 'A')
+  const retrigger = performAction(state, 'A')
+  assert.equal(retrigger, false)
+  assert.match(state.message, /already guiding the moon bridge/i)
+})
+
 test('startup support message reports unusable WebGL contexts', () => {
   assert.match(
     getStartupSupportMessage({ hasWebGLRenderingContext: true, hasUsableWebGL: false }),

@@ -6,16 +6,19 @@ import {
   getAssemblyStatus,
   getDemoLength,
   getNodeActions,
+  getNodePosition,
   getStartupSupportMessage,
   moveInDirection,
   moveToNeighbor,
   performAction,
   resetToLastCheckpoint,
   restartState,
-  runDemoStep,
 } from './game/logic.js'
 import { createFestivalScene, createFollowCamera, createRenderer, syncScene, updateCamera } from './game/renderer.js'
 
+const MOVE_DURATION_MS = 820
+const ACTION_DURATION_MS = 760
+const BETWEEN_STEPS_MS = 180
 const app = document.querySelector('#app')
 
 app.innerHTML = `
@@ -31,7 +34,7 @@ app.innerHTML = `
         <ul class="hero-list">
           <li>A uses lantern posts to decide which paper wheel is solid.</li>
           <li>B rotates the currently useful wheel from nearby control perches.</li>
-          <li>Observer mode always stays side by side; portrait devices get a landscape hint instead of a silent layout swap.</li>
+          <li>The walkthrough now animates real move/action inputs so the puzzle reads like live play from each phone POV.</li>
         </ul>
       </div>
     </header>
@@ -71,18 +74,22 @@ app.innerHTML = `
       </article>
     </section>
 
-    <p class="landscape-hint">For two adults sharing one phone or small tablet, landscape orientation is strongly recommended. Observer mode will remain horizontal and scroll if necessary.</p>
+    <p class="landscape-hint">For two adults sharing one phone or small tablet, landscape orientation is strongly recommended. Observer mode stays horizontal and each panel shows what that player is pressing and seeing.</p>
 
     <section id="view-shell" class="view-shell observer" data-testid="view-shell">
       <article class="player-view" data-player="A" data-testid="panel-A">
         <header>
           <div>
             <p class="pane-label">A · Lantern guide</p>
-            <h3>Third-person follow view</h3>
+            <h3>Phone-style third-person POV</h3>
           </div>
           <div class="input-pill" id="input-A">Waiting</div>
         </header>
         <div class="viewport-wrap">
+          <div class="viewport-callout-row">
+            <span class="pov-chip">Phone A POV</span>
+            <span class="callout-chip" id="callout-A">Waiting for input</span>
+          </div>
           <canvas id="canvas-A" class="viewport" aria-label="Player A view"></canvas>
           <div class="viewport-overlay">
             <span class="chip">Character: <strong id="position-A"></strong></span>
@@ -100,11 +107,15 @@ app.innerHTML = `
         <header>
           <div>
             <p class="pane-label">B · Wheel keeper</p>
-            <h3>Third-person follow view</h3>
+            <h3>Phone-style third-person POV</h3>
           </div>
           <div class="input-pill" id="input-B">Waiting</div>
         </header>
         <div class="viewport-wrap">
+          <div class="viewport-callout-row">
+            <span class="pov-chip">Phone B POV</span>
+            <span class="callout-chip" id="callout-B">Waiting for input</span>
+          </div>
           <canvas id="canvas-B" class="viewport" aria-label="Player B view"></canvas>
           <div class="viewport-overlay">
             <span class="chip">Character: <strong id="position-B"></strong></span>
@@ -182,6 +193,10 @@ function startApp() {
       A: document.querySelector('#input-A'),
       B: document.querySelector('#input-B'),
     },
+    callouts: {
+      A: document.querySelector('#callout-A'),
+      B: document.querySelector('#callout-B'),
+    },
     positions: {
       A: document.querySelector('#position-A'),
       B: document.querySelector('#position-B'),
@@ -198,6 +213,10 @@ function startApp() {
       A: document.querySelector('#act-A'),
       B: document.querySelector('#act-B'),
     },
+    panels: {
+      A: document.querySelector('[data-testid="panel-A"]'),
+      B: document.querySelector('[data-testid="panel-B"]'),
+    },
     watchDemo: document.querySelector('#watch-demo'),
     pauseDemo: document.querySelector('#pause-demo'),
     restartGame: document.querySelector('#restart-game'),
@@ -213,20 +232,78 @@ function startApp() {
     waitUntil: 0,
     finished: false,
   }
+
   const canvasSizes = {
     A: { width: 0, height: 0 },
     B: { width: 0, height: 0 },
   }
 
+  const presentation = createPresentationState(state)
+
+  function createPresentationState(currentState) {
+    const players = {}
+    for (const playerId of ['A', 'B']) {
+      const pos = getNodePosition(currentState.players[playerId].node)
+      players[playerId] = {
+        x: pos.x,
+        z: pos.z,
+        y: 0,
+        facing: currentState.players[playerId].facing,
+        moving: false,
+        motion: null,
+      }
+    }
+
+    const assemblies = {}
+    for (const assemblyId of Object.keys(WORLD.assemblies)) {
+      assemblies[assemblyId] = getAssemblyVisualTargets(currentState, assemblyId)
+      assemblies[assemblyId].motion = null
+    }
+
+    return {
+      players,
+      assemblies,
+      bridge: { progress: currentState.beaconLit ? 1 : 0, motion: null },
+      focus: {
+        playerId: null,
+        kind: null,
+        label: '',
+        target: null,
+      },
+      holdUntil: 0,
+    }
+  }
+
+  function getAssemblyVisualTargets(currentState, assemblyId) {
+    return {
+      angle: WORLD.assemblies[assemblyId].orientations[currentState.assemblies[assemblyId].orientation].angle,
+      lift: currentState.activeAssembly === assemblyId ? 0.35 : 0.18,
+      glow: currentState.activeAssembly === assemblyId ? 0.45 : 0,
+    }
+  }
+
   function inputLocked() {
-    return demo.active
+    return demo.active || hasPresentationMotion(performance.now())
   }
 
   function setInput(playerId, label) {
     state.players[playerId].lastInput = label
   }
 
-  function applyAction(result, playerId, label) {
+  function startFocus(playerId, kind, label, target = null) {
+    presentation.focus = { playerId, kind, label, target }
+    presentation.holdUntil = performance.now() + 220
+  }
+
+  function clearFocusIfIdle(now) {
+    if (presentation.focus.playerId && !hasPresentationMotion(now) && now >= presentation.holdUntil) {
+      presentation.focus = { playerId: null, kind: null, label: '', target: null }
+      return true
+    }
+    return false
+  }
+
+  function applyActionResult(result, playerId, label) {
     setInput(playerId, label)
     if (!result && state.players[playerId].action === 'Waiting') {
       state.players[playerId].action = 'Action had no effect.'
@@ -235,24 +312,89 @@ function startApp() {
     renderUi()
   }
 
-  function pressMoveButton(playerId, targetNodeId) {
-    if (inputLocked()) return
-    const result = moveToNeighbor(state, playerId, targetNodeId, 'touch')
-    applyAction(result, playerId, `Tap ${WORLD.nodes[targetNodeId]?.label ?? targetNodeId}`)
+  function animateMove(playerId, previousNodeId, nextNodeId) {
+    const current = presentation.players[playerId]
+    const from = getNodePosition(previousNodeId)
+    const to = getNodePosition(nextNodeId)
+    current.motion = {
+      startTime: performance.now(),
+      duration: MOVE_DURATION_MS,
+      from,
+      to,
+      endFacing: state.players[playerId].facing,
+    }
+    current.moving = true
   }
 
-  function pressActionButton(playerId) {
-    if (inputLocked()) return
+  function animateWorldAfterAction(beforeSnapshot) {
+    const now = performance.now()
+    let changed = false
+    for (const assemblyId of Object.keys(WORLD.assemblies)) {
+      const visuals = presentation.assemblies[assemblyId]
+      const next = getAssemblyVisualTargets(state, assemblyId)
+      if (
+        Math.abs(visuals.angle - next.angle) > 0.001 ||
+        Math.abs(visuals.lift - next.lift) > 0.001 ||
+        Math.abs(visuals.glow - next.glow) > 0.001
+      ) {
+        visuals.motion = {
+          startTime: now,
+          duration: ACTION_DURATION_MS,
+          from: { angle: visuals.angle, lift: visuals.lift, glow: visuals.glow },
+          to: next,
+        }
+        changed = true
+      }
+    }
+
+    if (beforeSnapshot.beaconLit !== state.beaconLit) {
+      presentation.bridge.motion = {
+        startTime: now,
+        duration: ACTION_DURATION_MS,
+        from: presentation.bridge.progress,
+        to: state.beaconLit ? 1 : 0,
+      }
+      changed = true
+    }
+
+    if (changed) presentation.holdUntil = now + ACTION_DURATION_MS
+  }
+
+  function queueMove(playerId, targetNodeId, source, label, force = false) {
+    if (!force && inputLocked()) return
+    const previousNodeId = state.players[playerId].node
+    const result = moveToNeighbor(state, playerId, targetNodeId, source)
+    if (result) {
+      startFocus(playerId, 'move', label, targetNodeId)
+      animateMove(playerId, previousNodeId, targetNodeId)
+    }
+    applyActionResult(result, playerId, label)
+  }
+
+  function queueAction(playerId, source, label, force = false) {
+    if (!force && inputLocked()) return
+    const beforeSnapshot = {
+      beaconLit: state.beaconLit,
+    }
+    for (const assemblyId of Object.keys(WORLD.assemblies)) {
+      beforeSnapshot[assemblyId] = getAssemblyVisualTargets(state, assemblyId)
+    }
     const result = performAction(state, playerId)
-    applyAction(result, playerId, 'Tap action')
+    if (result) {
+      startFocus(playerId, 'act', label)
+      animateWorldAfterAction(beforeSnapshot)
+    }
+    applyActionResult(result, playerId, label)
   }
 
   function renderMoves(playerId) {
     const actions = getNodeActions(state, playerId)
     const moveActions = actions.filter((entry) => entry.type === 'move')
     const actionEntry = actions.find((entry) => entry.type === 'act')
-    fullUi.actionButtons[playerId].textContent = actionEntry?.label ?? 'No festival control here'
-    fullUi.actionButtons[playerId].disabled = !actionEntry || inputLocked()
+    const actionButton = fullUi.actionButtons[playerId]
+    actionButton.textContent = actionEntry?.label ?? 'No festival control here'
+    actionButton.disabled = !actionEntry || inputLocked()
+    actionButton.classList.toggle('demo-active', presentation.focus.playerId === playerId && presentation.focus.kind === 'act')
 
     fullUi.moveGrids[playerId].innerHTML = ''
     for (const action of moveActions) {
@@ -262,7 +404,10 @@ function startApp() {
       button.dataset.target = action.target
       button.className = 'move-button'
       button.disabled = inputLocked()
-      button.addEventListener('click', () => pressMoveButton(playerId, action.target))
+      if (presentation.focus.playerId === playerId && presentation.focus.kind === 'move' && presentation.focus.target === action.target) {
+        button.classList.add('demo-active')
+      }
+      button.addEventListener('click', () => queueMove(playerId, action.target, 'touch', `Tap ${button.textContent}`))
       fullUi.moveGrids[playerId].append(button)
     }
   }
@@ -283,9 +428,7 @@ function startApp() {
 
   function renderCheckpoints() {
     fullUi.checkpointList.innerHTML = state.checkpoints
-      .map(
-        (entry) => `<li class="${entry.reached ? 'done' : ''}">${entry.reached ? '✓' : '○'} ${entry.label}</li>`,
-      )
+      .map((entry) => `<li class="${entry.reached ? 'done' : ''}">${entry.reached ? '✓' : '○'} ${entry.label}</li>`)
       .join('')
   }
 
@@ -297,14 +440,15 @@ function startApp() {
 
     for (const playerId of ['A', 'B']) {
       fullUi.inputs[playerId].textContent = state.players[playerId].lastInput
+      fullUi.callouts[playerId].textContent = presentation.focus.playerId === playerId ? presentation.focus.label : 'Waiting for input'
       fullUi.positions[playerId].textContent = WORLD.nodes[state.players[playerId].node]?.label ?? state.players[playerId].node.replace('-center', ' wheel')
       fullUi.actions[playerId].textContent = state.players[playerId].action
+      fullUi.panels[playerId].classList.toggle('is-focused', presentation.focus.playerId === playerId)
       renderMoves(playerId)
     }
 
     renderAssemblyStatus()
     renderCheckpoints()
-    syncScene(state, sceneParts)
     updatePlaybackButtons()
   }
 
@@ -322,12 +466,34 @@ function startApp() {
     demo.index = 0
     demo.waitUntil = 0
     demo.finished = false
-    state.message = 'Running the legal-input demo. Controls stay locked until you take control.'
+    resetPresentationToState()
+    state.message = 'Running the legal-input demo. Inputs, movement, and wheel changes animate like live play.'
     for (const playerId of ['A', 'B']) {
       state.players[playerId].lastInput = 'Demo queue starting'
       state.players[playerId].action = 'Waiting for first move.'
     }
     renderUi()
+  }
+
+  function resetPresentationToState() {
+    for (const playerId of ['A', 'B']) {
+      const pos = getNodePosition(state.players[playerId].node)
+      presentation.players[playerId].x = pos.x
+      presentation.players[playerId].z = pos.z
+      presentation.players[playerId].y = 0
+      presentation.players[playerId].facing = state.players[playerId].facing
+      presentation.players[playerId].moving = false
+      presentation.players[playerId].motion = null
+    }
+    for (const assemblyId of Object.keys(WORLD.assemblies)) {
+      const next = getAssemblyVisualTargets(state, assemblyId)
+      Object.assign(presentation.assemblies[assemblyId], next, { motion: null })
+    }
+    presentation.bridge.progress = state.beaconLit ? 1 : 0
+    presentation.bridge.motion = null
+    presentation.focus = { playerId: null, kind: null, label: '', target: null }
+    presentation.holdUntil = 0
+    syncScene(presentation, sceneParts)
   }
 
   function stopDemo() {
@@ -338,7 +504,7 @@ function startApp() {
   }
 
   function runDemoFrame(now) {
-    if (!demo.active || demo.paused || now < demo.waitUntil) return
+    if (!demo.active || demo.paused || now < demo.waitUntil || hasPresentationMotion(now)) return
     if (demo.index >= getDemoLength()) {
       demo.active = false
       demo.finished = true
@@ -348,16 +514,13 @@ function startApp() {
     }
 
     const [playerId, kind, value] = DEMO_SCRIPT[demo.index]
-    const success = runDemoStep(state, demo.index)
-    state.players[playerId].lastInput = kind === 'move' ? `Demo move: ${WORLD.nodes[value]?.label ?? value}` : 'Demo action'
-    if (!success) {
-      state.players[playerId].action = 'Demo step failed; manual review required.'
-      stopDemo()
+    if (kind === 'move') {
+      queueMove(playerId, value, 'demo', `Demo tap · ${WORLD.nodes[value]?.label ?? value}`, true)
     } else {
-      demo.index += 1
-      demo.waitUntil = now + 550
+      queueAction(playerId, 'demo', 'Demo tap · use nearby festival control', true)
     }
-    renderUi()
+    demo.index += 1
+    demo.waitUntil = performance.now() + BETWEEN_STEPS_MS
   }
 
   function visiblePlayers() {
@@ -378,14 +541,88 @@ function startApp() {
     cameras[playerId].updateProjectionMatrix()
   }
 
-  function animate(now = 0) {
+  function smoothstep(value) {
+    return value * value * (3 - 2 * value)
+  }
+
+  function hasPresentationMotion(now) {
+    if (now < presentation.holdUntil) return true
+    for (const playerId of ['A', 'B']) {
+      if (presentation.players[playerId].motion) return true
+    }
+    for (const assemblyId of Object.keys(WORLD.assemblies)) {
+      if (presentation.assemblies[assemblyId].motion) return true
+    }
+    return Boolean(presentation.bridge.motion)
+  }
+
+  function tickPresentation(now) {
+    let needsUiRefresh = false
+    for (const playerId of ['A', 'B']) {
+      const player = presentation.players[playerId]
+      const motion = player.motion
+      if (!motion) continue
+      const raw = Math.min(1, (now - motion.startTime) / motion.duration)
+      const eased = smoothstep(Math.max(0, raw))
+      player.x = motion.from.x + (motion.to.x - motion.from.x) * eased
+      player.z = motion.from.z + (motion.to.z - motion.from.z) * eased
+      player.y = Math.sin(eased * Math.PI) * 0.22
+      player.facing = motion.endFacing
+      player.moving = eased < 1
+      if (raw >= 1) {
+        player.x = motion.to.x
+        player.z = motion.to.z
+        player.y = 0
+        player.facing = motion.endFacing
+        player.moving = false
+        player.motion = null
+        needsUiRefresh = true
+      }
+    }
+
+    for (const assemblyId of Object.keys(WORLD.assemblies)) {
+      const assembly = presentation.assemblies[assemblyId]
+      const motion = assembly.motion
+      if (!motion) continue
+      const raw = Math.min(1, (now - motion.startTime) / motion.duration)
+      const eased = smoothstep(Math.max(0, raw))
+      assembly.angle = motion.from.angle + (motion.to.angle - motion.from.angle) * eased
+      assembly.lift = motion.from.lift + (motion.to.lift - motion.from.lift) * eased
+      assembly.glow = motion.from.glow + (motion.to.glow - motion.from.glow) * eased
+      if (raw >= 1) {
+        assembly.angle = motion.to.angle
+        assembly.lift = motion.to.lift
+        assembly.glow = motion.to.glow
+        assembly.motion = null
+        needsUiRefresh = true
+      }
+    }
+
+    if (presentation.bridge.motion) {
+      const raw = Math.min(1, (now - presentation.bridge.motion.startTime) / presentation.bridge.motion.duration)
+      const eased = smoothstep(Math.max(0, raw))
+      presentation.bridge.progress = presentation.bridge.motion.from + (presentation.bridge.motion.to - presentation.bridge.motion.from) * eased
+      if (raw >= 1) {
+        presentation.bridge.progress = presentation.bridge.motion.to
+        presentation.bridge.motion = null
+        needsUiRefresh = true
+      }
+    }
+
+    if (clearFocusIfIdle(now)) needsUiRefresh = true
+    if (needsUiRefresh) renderUi()
+  }
+
+  function animate(now = performance.now()) {
     runDemoFrame(now)
+    tickPresentation(now)
+    syncScene(presentation, sceneParts)
     for (const playerId of visiblePlayers()) {
       resizeRenderer(playerId)
-      updateCamera(cameras[playerId], state.players[playerId])
+      updateCamera(cameras[playerId], presentation.players[playerId])
       renderers[playerId].render(sceneParts.scene, cameras[playerId])
     }
-    requestAnimationFrame(animate)
+    window.setTimeout(() => animate(performance.now()), 16)
   }
 
   fullUi.watchDemo.addEventListener('click', startDemo)
@@ -400,6 +637,7 @@ function startApp() {
   fullUi.restartGame.addEventListener('click', () => {
     stopDemo()
     restartState(state)
+    resetPresentationToState()
     state.message = 'Activity restarted from the lantern gates.'
     renderUi()
   })
@@ -415,6 +653,7 @@ function startApp() {
   fullUi.resetCheckpoint.addEventListener('click', () => {
     stopDemo()
     resetToLastCheckpoint(state)
+    resetPresentationToState()
     renderUi()
   })
   fullUi.viewMode.addEventListener('change', () => {
@@ -422,7 +661,7 @@ function startApp() {
   })
 
   for (const button of document.querySelectorAll('[data-kind="act"]')) {
-    button.addEventListener('click', () => pressActionButton(button.dataset.player))
+    button.addEventListener('click', () => queueAction(button.dataset.player, 'touch', 'Tap action'))
   }
 
   const keyMap = {
@@ -452,16 +691,29 @@ function startApp() {
     if (inputLocked()) return
     const [playerId, intent] = mapping
     if (intent === 'act') {
-      const result = performAction(state, playerId)
-      applyAction(result, playerId, `Key ${event.key}`)
+      queueAction(playerId, 'keyboard', `Key ${event.key}`)
     } else {
+      const beforeNodeId = state.players[playerId].node
       const result = moveInDirection(state, playerId, intent, `Key ${event.key}`)
-      applyAction(result, playerId, `Key ${event.key}`)
+      if (result) {
+        startFocus(playerId, 'move', `Key ${event.key}`)
+        animateMove(playerId, beforeNodeId, state.players[playerId].node)
+      }
+      applyActionResult(result, playerId, `Key ${event.key}`)
     }
   })
 
+  resetPresentationToState()
   renderUi()
-  requestAnimationFrame(animate)
+  animate(performance.now())
   window.__LANTERN_FESTIVAL_STATE__ = state
   window.__LANTERN_FESTIVAL_SUMMARY__ = () => exportStateSummary(state)
+  window.__LANTERN_FESTIVAL_PRESENTATION__ = () => ({
+    focus: { ...presentation.focus },
+    players: {
+      A: { ...presentation.players.A },
+      B: { ...presentation.players.B },
+    },
+    bridge: { progress: presentation.bridge.progress },
+  })
 }

@@ -1,10 +1,10 @@
 import * as THREE from 'three'
 import { WORLD } from './config.js'
-import { getAssemblyStatus, getNodePosition } from './logic.js'
 
 const LANTERN_GLOW = 0xffc86f
 const SKY_TOP = 0xf7a8a0
 const SKY_BOTTOM = 0xb19cff
+const PLAYER_ROTATIONS = { north: Math.PI, south: 0, east: -Math.PI / 2, west: Math.PI / 2 }
 
 function makeRoundedBox(width, height, depth, color) {
   return new THREE.Mesh(
@@ -105,7 +105,6 @@ export function createFestivalScene() {
   stream.receiveShadow = true
   scene.add(stream)
 
-  const staticMeshes = []
   const nodeMeshes = new Map()
 
   for (const entry of Object.values(WORLD.nodes)) {
@@ -113,8 +112,9 @@ export function createFestivalScene() {
     tile.position.set(entry.x, 0.18, entry.z)
     tile.receiveShadow = true
     tile.castShadow = true
+    tile.userData.baseY = 0.18
+    tile.userData.baseColor = new THREE.Color(entry.color)
     scene.add(tile)
-    staticMeshes.push(tile)
     nodeMeshes.set(entry.id, tile)
 
     if (entry.kind === 'lantern' || entry.kind === 'beacon' || entry.kind === 'goal') {
@@ -144,7 +144,6 @@ export function createFestivalScene() {
     bridge.rotation.y = Math.atan2(dx, dz)
     bridge.receiveShadow = true
     scene.add(bridge)
-    staticMeshes.push(bridge)
   }
 
   addTree(scene, -15.5, -7, 1.2)
@@ -164,10 +163,8 @@ export function createFestivalScene() {
   const assemblyMeshes = new Map()
   for (const [assemblyId, assembly] of Object.entries(WORLD.assemblies)) {
     const base = new THREE.Group()
-    const deck = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.15, 1.15, 0.18, 6),
-      new THREE.MeshStandardMaterial({ color: 0xfdf4e2, roughness: 0.65, metalness: 0.02 }),
-    )
+    const deckMaterial = new THREE.MeshStandardMaterial({ color: 0xfdf4e2, roughness: 0.65, metalness: 0.02 })
+    const deck = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, 0.18, 6), deckMaterial)
     deck.rotation.y = Math.PI / 6
     deck.castShadow = true
     deck.receiveShadow = true
@@ -190,9 +187,17 @@ export function createFestivalScene() {
     assemblyMeshes.set(assemblyId, base)
   }
 
-  const moonBridge = makeRoundedBox(12.2, 0.16, 1.1, 0xf1d4b0)
+  const moonBridgeMaterial = new THREE.MeshStandardMaterial({
+    color: 0xf1d4b0,
+    transparent: true,
+    opacity: 0,
+    emissive: 0xf5c67e,
+    emissiveIntensity: 0,
+  })
+  const moonBridge = new THREE.Mesh(new THREE.BoxGeometry(12.2, 0.16, 1.1), moonBridgeMaterial)
   moonBridge.position.set(2, 0.11, 4)
   moonBridge.rotation.y = Math.PI / 2
+  moonBridge.scale.x = 0.01
   moonBridge.visible = false
   moonBridge.receiveShadow = true
   moonBridge.castShadow = true
@@ -260,35 +265,45 @@ export function createFollowCamera() {
   return camera
 }
 
-export function syncScene(state, sceneParts) {
+export function syncScene(presentation, sceneParts) {
   for (const [playerId, mesh] of Object.entries(sceneParts.playerMeshes)) {
-    const pos = getNodePosition(state.players[playerId].node)
-    mesh.position.set(pos.x, 0, pos.z)
-    const facing = state.players[playerId].facing
-    mesh.rotation.y = { north: Math.PI, south: 0, east: -Math.PI / 2, west: Math.PI / 2 }[facing] ?? 0
+    const player = presentation.players[playerId]
+    mesh.position.set(player.x, player.y, player.z)
+    mesh.rotation.y = PLAYER_ROTATIONS[player.facing] ?? 0
   }
 
   for (const assemblyId of Object.keys(WORLD.assemblies)) {
-    const status = getAssemblyStatus(state, assemblyId)
+    const visual = presentation.assemblies[assemblyId]
     const mesh = sceneParts.assemblyMeshes.get(assemblyId)
-    mesh.rotation.y = WORLD.assemblies[assemblyId].orientations.find((entry) => entry.label === status.orientation).angle
-    mesh.position.y = status.lit ? 0.35 : 0.18
-    mesh.children[0].material.emissive = new THREE.Color(status.lit ? 0xffc86f : 0x000000)
-    mesh.children[0].material.emissiveIntensity = status.lit ? 0.45 : 0
+    mesh.rotation.y = visual.angle
+    mesh.position.y = visual.lift
+    mesh.children[0].material.emissive = new THREE.Color(0xffc86f)
+    mesh.children[0].material.emissiveIntensity = visual.glow
   }
 
-  sceneParts.moonBridge.visible = state.beaconLit
+  for (const [nodeId, mesh] of sceneParts.nodeMeshes.entries()) {
+    const isTarget = presentation.focus.kind === 'move' && presentation.focus.target === nodeId
+    const targetScale = isTarget ? 1.08 : 1
+    mesh.scale.set(targetScale, 1, targetScale)
+    mesh.position.y = mesh.userData.baseY + (isTarget ? 0.06 : 0)
+    mesh.material.emissive = new THREE.Color(isTarget ? 0xffcc7a : 0x000000)
+    mesh.material.emissiveIntensity = isTarget ? 0.3 : 0
+  }
+
+  sceneParts.moonBridge.visible = presentation.bridge.progress > 0.01
+  sceneParts.moonBridge.scale.x = Math.max(0.01, presentation.bridge.progress)
+  sceneParts.moonBridge.material.opacity = presentation.bridge.progress
+  sceneParts.moonBridge.material.emissiveIntensity = 0.5 * presentation.bridge.progress
 }
 
-export function updateCamera(camera, playerState) {
-  const pos = getNodePosition(playerState.node)
+export function updateCamera(camera, playerVisual) {
   const offsets = {
     north: { x: 0, z: 5.6 },
     south: { x: 0, z: -5.6 },
     east: { x: -5.6, z: 0 },
     west: { x: 5.6, z: 0 },
   }
-  const offset = offsets[playerState.facing] ?? offsets.south
-  camera.position.set(pos.x + offset.x, 5.3, pos.z + offset.z)
-  camera.lookAt(pos.x, 1.2, pos.z)
+  const offset = offsets[playerVisual.facing] ?? offsets.south
+  camera.position.set(playerVisual.x + offset.x, 5.3, playerVisual.z + offset.z)
+  camera.lookAt(playerVisual.x, 1.2, playerVisual.z)
 }

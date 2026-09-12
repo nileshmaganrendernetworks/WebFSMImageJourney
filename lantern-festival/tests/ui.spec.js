@@ -1,5 +1,27 @@
 import { expect, test } from '@playwright/test'
 
+test('demo walkthrough shows in-between motion and active input callouts', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: /Watch full demo/i }).click()
+  await page.waitForFunction(() => {
+    const presentation = window.__LANTERN_FESTIVAL_PRESENTATION__?.()
+    return Boolean(
+      presentation &&
+      presentation.focus.playerId === 'A' &&
+      presentation.players.A.moving &&
+      presentation.players.A.x > -14 &&
+      presentation.players.A.x < -11
+    )
+  })
+
+  await expect(page.locator('#callout-A')).toContainText(/Demo tap/i)
+  const presentation = await page.evaluate(() => window.__LANTERN_FESTIVAL_PRESENTATION__())
+  expect(presentation.focus.playerId).toBe('A')
+  expect(presentation.players.A.moving).toBe(true)
+  expect(presentation.players.A.x).toBeGreaterThan(-14)
+  expect(presentation.players.A.x).toBeLessThan(-11)
+})
+
 test('observer mode stays side by side and solves without console/network errors', async ({ page }) => {
   const requests = []
   const consoleErrors = []
@@ -53,8 +75,11 @@ test('touch-friendly controls work at mobile landscape width', async ({ page }) 
   await page.goto('/')
 
   await page.getByTestId('panel-A').getByRole('button', { name: 'A Garden Walk' }).click()
+  await expect(page.getByTestId('panel-A').getByRole('button', { name: 'Shared Plaza' })).toBeEnabled()
   await page.getByTestId('panel-A').getByRole('button', { name: 'Shared Plaza' }).click()
+  await expect(page.getByTestId('panel-A').getByRole('button', { name: 'West Bank Lantern' })).toBeEnabled()
   await page.getByTestId('panel-A').getByRole('button', { name: 'West Bank Lantern' }).click()
+  await expect(page.getByTestId('panel-A').getByRole('button', { name: /Illuminate West Paper Wheel/i })).toBeEnabled()
   await page.getByTestId('panel-A').getByRole('button', { name: /Illuminate West Paper Wheel/i }).click()
 
   await expect(page.getByText(/West Paper Wheel becomes solid/i)).toBeVisible()

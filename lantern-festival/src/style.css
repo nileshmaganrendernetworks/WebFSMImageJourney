@@ -100,6 +100,12 @@ h1 { margin: 0; font-size: clamp(2rem, 3vw, 3.2rem); }
   display: grid;
   gap: 12px;
   min-width: 360px;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+.player-view.is-focused {
+  transform: translateY(-2px);
+  border-color: rgba(255, 164, 110, 0.7);
+  box-shadow: 0 16px 32px rgba(196, 118, 74, 0.22);
 }
 .player-view header {
   display: flex;
@@ -122,12 +128,34 @@ h1 { margin: 0; font-size: clamp(2rem, 3vw, 3.2rem); }
   overflow: hidden;
   background: #f1dddc;
   min-height: 340px;
+  border: 10px solid rgba(76, 52, 50, 0.14);
+}
+.viewport-callout-row {
+  position: absolute;
+  inset: 12px 12px auto 12px;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pov-chip, .callout-chip {
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(254, 250, 243, 0.92);
+  border: 1px solid rgba(90, 65, 54, 0.14);
+  font-size: 0.9rem;
+}
+.pov-chip { font-weight: 700; }
+.callout-chip {
+  background: rgba(255, 235, 197, 0.95);
+  min-height: 36px;
 }
 .viewport {
   display: block;
   width: 100%;
-  height: min(44vw, 420px);
-  min-height: 340px;
+  height: min(44vw, 520px);
+  min-height: 360px;
 }
 .viewport-overlay {
   position: absolute;
@@ -161,6 +189,11 @@ h1 { margin: 0; font-size: clamp(2rem, 3vw, 3.2rem); }
   min-height: 50px;
   padding: 10px 12px;
 }
+.demo-active {
+  box-shadow: 0 0 0 3px rgba(255, 176, 92, 0.58);
+  border-color: rgba(214, 132, 61, 0.8);
+  background: linear-gradient(135deg, #ffe6b7, #ffd2b6);
+}
 .control-note {
   margin: 0;
   color: #7d6460;
@@ -175,5 +208,5 @@ h1 { margin: 0; font-size: clamp(2rem, 3vw, 3.2rem); }
   .shell { padding: 12px; }
   .view-shell.observer { grid-template-columns: repeat(2, minmax(320px, 1fr)); }
   .player-view { min-width: 320px; }
-  .viewport { height: 62vw; min-height: 300px; }
+  .viewport { height: 82vw; min-height: 300px; }
 }

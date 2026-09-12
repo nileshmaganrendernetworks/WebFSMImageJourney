@@ -4,9 +4,10 @@ A warm dusk two-player cooperative browser activity built as an isolated app ins
 
 ## What it is
 
-- A **same-device local co-op** experience for two players.
+- A **same-device local co-op** experience for two roles.
 - **Not real remote multiplayer**. Observer mode shows both live player views side by side on one screen, and full-view modes can focus on either player.
 - Built with **Vite + Three.js** using only local installed dependencies. There are **no runtime CDN downloads**.
+- The puzzle requires both **lantern** and **rotation** roles, but the app does **not** attempt to enforce two distinct humans on one keyboard/device.
 
 ## Supported launch method
 
@@ -54,6 +55,8 @@ Each player has their own panel:
 - **Player A:** `WASD` move, `F` act
 - **Player B:** arrow keys or `IJKL` move, `Enter` or `H` act
 
+Toolbar controls remain keyboard-focusable. Gameplay hotkeys are ignored while a button/select/input has focus.
+
 ## Complete challenge progression
 
 1. **Find the side terrace**: A lights the West Paper Wheel; B uses it to reach the side terrace.
@@ -64,27 +67,30 @@ Each player has their own panel:
 ## Demo and hand-off honesty
 
 - **Watch full demo** runs through the same legal move/action system as manual play.
-- **Pause demo** stops the scripted input queue without desynchronizing the state.
-- **Take control** immediately returns manual control to both players.
+- **Pause demo** freezes playback but **keeps manual controls locked**.
+- **Take control** explicitly cancels demo playback and returns manual input to both players.
 - **Restart activity** restarts from the beginning.
-- **Reset to last lantern rest** restores the latest checkpoint snapshot.
+- **Reset to last lantern rest** restores the latest durable checkpoint snapshot, including out-of-order split-role progress.
 
 ## Browser / viewport evidence
 
 Automated browser coverage was run for:
 - desktop observer mode
+- paused-demo / take-control hand-off
 - mobile-landscape sized viewport (`932x430`)
 
 The UI test checks:
 - observer mode stays side by side
 - demo reaches the solved state
+- pause does not silently grant manual control
+- take control returns manual play cleanly
 - no external runtime requests
 - no console errors during load and play
 
 ## Audit evidence
 
-- Logic tests validate solvability, checkpoint restore, demo completion, and occupied-wheel light transfer blocking.
-- Browser tests validate visible startup, observer-mode layout, demo completion, touch-friendly controls, and lack of CDN dependency.
+- Logic tests validate solvability, checkpoint restore, out-of-order durable progress, demo completion, and occupied-wheel light transfer blocking.
+- Browser tests validate visible startup, observer-mode layout, demo completion, pause/hand-off integrity, touch-friendly controls, and lack of CDN dependency.
 - Independent review findings are summarized in `LEVEL_DESIGN.md`.
 
 ## Screenshots
@@ -95,4 +101,5 @@ Automation-generated screenshots captured during validation live in `docs/eviden
 
 - This is **local same-device co-op**, not tested networked multiplayer.
 - Estimated first-play duration is **unvalidated** human timing.
+- The app cannot prove that two distinct humans are holding the controls; it only enforces distinct in-game roles.
 - No audio was added; the focus is readable cooperative play and demo honesty.

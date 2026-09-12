@@ -5,6 +5,13 @@ const INITIAL_PLAYER_STATE = {
   B: { node: 'bStart', facing: 'west', lastInput: 'Waiting', action: 'Standing at the lantern gate.' },
 }
 
+const INITIAL_PROGRESS = {
+  sideTerraceReached: false,
+  moonstoneReached: false,
+  eastCtrlReached: false,
+  farStoneReached: false,
+}
+
 function deepClone(value) {
   return JSON.parse(JSON.stringify(value))
 }
@@ -54,6 +61,7 @@ function copyForCheckpoint(state) {
     assemblies: state.assemblies,
     activeAssembly: state.activeAssembly,
     beaconLit: state.beaconLit,
+    progress: state.progress,
     message: state.message,
     win: state.win,
   })
@@ -64,11 +72,21 @@ function restoreFromCheckpoint(state, snapshot) {
   state.assemblies = deepClone(snapshot.assemblies)
   state.activeAssembly = snapshot.activeAssembly
   state.beaconLit = snapshot.beaconLit
+  state.progress = deepClone(snapshot.progress)
   state.message = snapshot.message
   state.win = snapshot.win
 }
 
+function updateProgress(state) {
+  const positions = Object.values(state.players).map((player) => player.node)
+  if (positions.includes('westEast')) state.progress.sideTerraceReached = true
+  if (positions.includes('safeStone')) state.progress.moonstoneReached = true
+  if (positions.includes('eastCtrl')) state.progress.eastCtrlReached = true
+  if (positions.includes('farStone')) state.progress.farStoneReached = true
+}
+
 function refreshCheckpoint(state) {
+  updateProgress(state)
   const nextIndex = state.checkpoints.findIndex((entry) => !entry.reached && entry.when(state))
   if (nextIndex === -1) return
   state.checkpoints[nextIndex].reached = true
@@ -95,6 +113,7 @@ export function createInitialState() {
     },
     activeAssembly: null,
     beaconLit: false,
+    progress: deepClone(INITIAL_PROGRESS),
     message: 'A must light a paper wheel. B can preview wheel rotations before they become solid.',
     win: false,
     checkpoints: WORLD.checkpoints.map((checkpoint) => ({ ...checkpoint, reached: false })),
@@ -104,6 +123,7 @@ export function createInitialState() {
       assemblies: { west: { orientation: 0 }, east: { orientation: 0 } },
       activeAssembly: null,
       beaconLit: false,
+      progress: deepClone(INITIAL_PROGRESS),
       message: 'Returned to the start.',
       win: false,
     },
@@ -357,8 +377,8 @@ export function getDemoLength() {
   return DEMO_SCRIPT.length
 }
 
-export function getStartupSupportMessage({ hasWebGLRenderingContext = true } = {}) {
-  if (!hasWebGLRenderingContext) {
+export function getStartupSupportMessage({ hasWebGLRenderingContext = true, hasUsableWebGL = true } = {}) {
+  if (!hasWebGLRenderingContext || !hasUsableWebGL) {
     return 'This activity needs WebGL-enabled browser support. Try current Chrome, Edge, Firefox, or Safari with hardware acceleration enabled.'
   }
   return ''
@@ -376,5 +396,6 @@ export function exportStateSummary(state) {
     beaconLit: state.beaconLit,
     win: state.win,
     checkpoint: state.lastCheckpoint,
+    progress: { ...state.progress },
   }
 }

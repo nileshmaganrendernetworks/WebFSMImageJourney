@@ -16,7 +16,6 @@ test('observer mode stays side by side and solves without console/network errors
   const layout = await viewShell.evaluate((element) => getComputedStyle(element).gridTemplateColumns)
   expect(layout.split(' ').length).toBeGreaterThanOrEqual(2)
 
-
   await page.getByRole('button', { name: /Watch full demo/i }).click()
   await expect(page.getByText(/demo complete/i)).toBeVisible({ timeout: 30000 })
   await expect(page.getByText(/Goal complete/i)).toBeVisible()
@@ -33,14 +32,30 @@ test('observer mode stays side by side and solves without console/network errors
   expect(consoleErrors).toEqual([])
 })
 
+test('pause locks controls until take control, then manual input works', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: /Watch full demo/i }).click()
+  await page.getByRole('button', { name: 'Pause demo' }).click()
+  await expect(page.getByRole('button', { name: 'Resume demo' })).toBeVisible()
+  await expect(page.getByText(/playback is frozen/i)).toBeVisible()
+  const firstMove = page.getByTestId('panel-A').locator('.move-button').first()
+  await expect(firstMove).toBeDisabled()
+  await page.getByRole('button', { name: 'Take control' }).click()
+  await expect(page.getByText(/Manual control returned/i)).toBeVisible()
+  await expect(firstMove).toBeEnabled()
+  const before = await page.locator('#position-A').textContent()
+  await firstMove.click()
+  await expect(page.locator('#position-A')).not.toHaveText(before ?? '')
+})
+
 test('touch-friendly controls work at mobile landscape width', async ({ page }) => {
   await page.setViewportSize({ width: 932, height: 430 })
   await page.goto('/')
 
-  await page.getByRole('button', { name: 'A Garden Walk' }).click()
-  await page.getByRole('button', { name: 'Shared Plaza' }).nth(0).click()
-  await page.getByRole('button', { name: 'West Bank Lantern' }).nth(0).click()
-  await page.getByRole('button', { name: /Illuminate West Paper Wheel/i }).click()
+  await page.getByTestId('panel-A').getByRole('button', { name: 'A Garden Walk' }).click()
+  await page.getByTestId('panel-A').getByRole('button', { name: 'Shared Plaza' }).click()
+  await page.getByTestId('panel-A').getByRole('button', { name: 'West Bank Lantern' }).click()
+  await page.getByTestId('panel-A').getByRole('button', { name: /Illuminate West Paper Wheel/i }).click()
 
   await expect(page.getByText(/West Paper Wheel becomes solid/i)).toBeVisible()
   await expect(page.locator('#input-A')).toContainText(/tap/i)

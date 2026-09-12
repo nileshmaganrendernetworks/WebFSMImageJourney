@@ -73,7 +73,7 @@ Estimated first-play range: **roughly 5–7 minutes, unvalidated by human playte
 
 **Plausible failed approach:** B leaves the side terrace too early, which removes B's ability to help A.
 
-**Recovery:** Reset to checkpoint 1 or simply walk B back while West is still lit.
+**Recovery:** The split-role checkpoint is **durable**: it records when A has reached Moonstone and B has reached Crane Perch, even if they arrive out of order.
 
 ### Beat 3 — Riding a live reconfiguration
 
@@ -92,7 +92,7 @@ Estimated first-play range: **roughly 5–7 minutes, unvalidated by human playte
 
 **Plausible failed approach:** A transfers the light too early while someone is still on West, or B rotates East before A boards.
 
-**Recovery:** The occupied-wheel rule prevents invalid light transfer; checkpoint 2 preserves the split-role setup.
+**Recovery:** The occupied-wheel rule prevents invalid light transfer; checkpoint 2 preserves the split-role setup even for out-of-order progress.
 
 ### Beat 4 — Finish without stranding the partner
 
@@ -115,22 +115,30 @@ Estimated first-play range: **roughly 5–7 minutes, unvalidated by human playte
 ## Checkpoints and resets
 
 - Checkpoint 1: `Side Terrace` discovered
-- Checkpoint 2: A at `Moonstone Terrace` while B is at `Crane Control Perch`
+- Checkpoint 2: durable split-role progress (`Moonstone Terrace` and `Crane Control Perch` both reached)
 - Checkpoint 3: A reaches `Far Blossom Landing`
 
 `Reset to last lantern rest` restores the latest reached checkpoint snapshot.
 
 ## Independent review notes
 
-### Prebuild gameplay critic findings incorporated
+### Resolved technical findings
+
+- **WebGL startup fallback** now checks actual context availability and falls back to an actionable message instead of throwing uncaught renderer errors.
+- **Pause vs. take-control** is now explicit: pausing freezes playback while controls remain locked, and only `Take control` unlocks manual input.
+- **Keyboard focus safety** was tightened so toolbar buttons keep their normal Enter/Space behavior instead of being hijacked by Player B hotkeys.
+- **Checkpoint durability** was revised after review so out-of-order human play no longer loses large amounts of progress on reset.
+
+### Incorporated gameplay findings
 
 - The game enforces a **hard anti-stranding rule**: A cannot transfer the light away from an occupied lit wheel.
 - The final beacon creates a **permanent reunion route**, so A reaching the far side does not leave B stranded.
 - Progression escalates by relationship changes (side-route discovery, role split, ride-on-rotation, partner reunion) rather than repeated identical rotations.
 - Every mistake is reversible through walking back or checkpoint restore; there is no falling punishment.
 
-### Remaining reviewer questions to keep honest
+### Honest unresolved limitations
 
 - The 5–7 minute first-play estimate remains **unvalidated** until real humans play it.
 - The app is intentionally **same-device local co-op**, not remote multiplayer.
 - Because both live views are visible in observer mode, the puzzle relies on role gating and route dependencies rather than hidden-information asymmetry.
+- A single determined person can still operate both roles on one keyboard/device; the app enforces distinct in-game roles, not distinct human identities.

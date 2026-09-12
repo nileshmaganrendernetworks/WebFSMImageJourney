@@ -94,17 +94,17 @@ export const WORLD = {
     {
       key: 'side-terrace',
       label: 'Checkpoint 1 · Side Terrace discovered',
-      when: (state) => state.players.B.node === 'westEast' || state.players.A.node === 'westEast',
+      when: (state) => state.progress.sideTerraceReached,
     },
     {
       key: 'split-roles',
-      label: 'Checkpoint 2 · Roles split across Moonstone and Crane Perch',
-      when: (state) => state.players.A.node === 'safeStone' && state.players.B.node === 'eastCtrl',
+      label: 'Checkpoint 2 · Split progress secured (Moonstone + Crane Perch discovered)',
+      when: (state) => state.progress.moonstoneReached && state.progress.eastCtrlReached,
     },
     {
       key: 'far-beacon',
       label: 'Checkpoint 3 · Far Blossom reached',
-      when: (state) => state.players.A.node === 'farStone',
+      when: (state) => state.progress.farStoneReached,
     },
   ],
 }
@@ -138,5 +138,5 @@ export const GAME_COPY = {
   title: 'Lantern Festival: Shared Wheels',
   subtitle: 'A cozy cooperative route-building activity for two adults on one device.',
   objective:
-    'Guide A to the Festival Beacon, then reunite in the Lantern Court. A moves the light. B rotates the paper wheels. Neither can finish alone.',
+    'Guide A to the Festival Beacon, then reunite in the Lantern Court. A moves the light. B rotates the paper wheels. Neither role can finish alone.',
 }

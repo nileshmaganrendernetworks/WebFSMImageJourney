@@ -352,6 +352,10 @@ function startApp() {
     renderUi()
   }
 
+  function visiblePlayers() {
+    return fullUi.viewMode.value === 'observer' ? ['A', 'B'] : [fullUi.viewMode.value]
+  }
+
   function resizeRenderer(playerId) {
     const canvas = document.querySelector(`#canvas-${playerId}`)
     const { clientWidth, clientHeight } = canvas
@@ -368,7 +372,7 @@ function startApp() {
 
   function animate(now = 0) {
     runDemoFrame(now)
-    for (const playerId of ['A', 'B']) {
+    for (const playerId of visiblePlayers()) {
       resizeRenderer(playerId)
       updateCamera(cameras[playerId], state.players[playerId])
       renderers[playerId].render(sceneParts.scene, cameras[playerId])

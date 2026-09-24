@@ -1,0 +1,10 @@
+{
+  "name": "rev-f-chopper",
+  "version": "0.1.0",
+  "description": "Rev F programmable food chopper — kinematic sequence animation and inspection UI",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/"
+  }
+}

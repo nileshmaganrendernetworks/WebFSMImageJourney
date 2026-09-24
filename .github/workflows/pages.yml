@@ -2,7 +2,7 @@ name: Deploy food-cutter to GitHub Pages
 
 on:
   push:
-    branches: [main, copilot/food-cutter-research]
+    branches: [main]
   workflow_dispatch:
 
 permissions:

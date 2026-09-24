@@ -42,6 +42,7 @@ The clips below are the actual 3D model running — not stills.
 |---|---|
 | `index.html` | 2D storyboard: feasibility table + 8 illustrated scenes (open in any browser) |
 | `model3d.html` | **Interactive 3D model** (Three.js, self-contained — just double-click). Play/pause, timeline scrubber, drag to orbit, scroll to zoom. Deep-link any moment with `#t=SECONDS` (e.g. `model3d.html#t=9`) |
+| `rev-f/rev-f.html` | **Rev F kinematic prototype** — state-machine-driven sequence with shaped parts (tapered knife blades, cam lobes, hopper, drum magazines), interlock assertions and pattern selector. Self-contained; double-click to open. Source in `rev-f/src/`, rebuild with `node rev-f/scripts/build.mjs`, checks via `node --test rev-f/tests/` |
 | `gifs/` | The animated clips embedded above, rendered from the 3D model |
 
 ## Requirement coverage

@@ -41,7 +41,26 @@ export const GEO = {
 
   // Blade carrier storage (origin-side magazines, explicit — no tiny boxes)
   magazine: { xX: -4.55, xZ: -3.55, length: 1.7 },
+
+  // Derived part extents used by both rendering and collision checks.
+  // Keep the rendered scene and the assertions reading the same numbers.
+  parts: {
+    bladeLen: 0,               // set below (needs travel range)
+    bladeTailLen: 0.22,        // drive tail hook behind the strip
+    bladeParkedInset: 0.4,     // tip sits this far behind travel min when parked
+    bladeOvertravel: 0.65,     // extra slide so the tip seats into the receiver
+    railDepth: 0.26,           // lock-rail head width along travel axis
+    railOffsetOrigin: 0.25,    // origin rail centre offset from travel min
+    railOffsetFar: 0.52,       // far rail centre offset from travel max
+    lockStroke: 0.28,          // rail closure travel
+    combDepth: 0.14,           // receiver tooth width along travel axis
+    combOffset: 0.25,          // receiver centre offset from travel max
+    wiperDepth: 0.1,           // wiper block width along travel axis
+    wiperOffset: 0.1,          // wiper centre offset from travel min
+  },
 };
+// Blade strip spans magazine -> chamber -> receiver at full extension.
+GEO.parts.bladeLen = (GEO.xTravelMax - GEO.xTravelMin) + 1.1;
 
 // Derived: blade line offsets (centred), used by checks + rendering.
 export function bladeOffsets() {

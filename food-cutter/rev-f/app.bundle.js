@@ -44,7 +44,26 @@ const GEO = {
 
   // Blade carrier storage (origin-side magazines, explicit — no tiny boxes)
   magazine: { xX: -4.55, xZ: -3.55, length: 1.7 },
+
+  // Derived part extents used by both rendering and collision checks.
+  // Keep the rendered scene and the assertions reading the same numbers.
+  parts: {
+    bladeLen: 0,               // set below (needs travel range)
+    bladeTailLen: 0.22,        // drive tail hook behind the strip
+    bladeParkedInset: 0.4,     // tip sits this far behind travel min when parked
+    bladeOvertravel: 0.65,     // extra slide so the tip seats into the receiver
+    railDepth: 0.26,           // lock-rail head width along travel axis
+    railOffsetOrigin: 0.25,    // origin rail centre offset from travel min
+    railOffsetFar: 0.52,       // far rail centre offset from travel max
+    lockStroke: 0.28,          // rail closure travel
+    combDepth: 0.14,           // receiver tooth width along travel axis
+    combOffset: 0.25,          // receiver centre offset from travel max
+    wiperDepth: 0.1,           // wiper block width along travel axis
+    wiperOffset: 0.1,          // wiper centre offset from travel min
+  },
 };
+// Blade strip spans magazine -> chamber -> receiver at full extension.
+GEO.parts.bladeLen = (GEO.xTravelMax - GEO.xTravelMin) + 1.1;
 
 // Derived: blade line offsets (centred), used by checks + rendering.
 function bladeOffsets() {
@@ -349,14 +368,17 @@ function sampleAt(t, patternKey2 = '12mm') {
 // reflects the kinematic state produced by stateMachine.js.
 //
 // Uses a deliberately small Three.js subset (WebGLRenderer, Scene, cameras,
-// Group, Mesh, Box/Cylinder geometry, standard/phong materials, lights,
-// arrows) so the bundler can inline a compact runtime.
+// Group, Mesh, Box/Cylinder/Sphere/Cone/Shape/Extrude geometry,
+// standard materials, lights, arrows) so the bundler can inline a compact
+// runtime. Parts are shaped to read as what they are — blades are tapered
+// knife strips, the camshaft carries cam lobes, the chute is a hopper —
+// not placeholder boxes.
 
 
 
 const C = {
   base: 0x2a3340, baseDark: 0x1d242e, dryAccent: 0xff8c2f,
-  wet: 0xd7dde5, wetDark: 0x39414f, steel: 0xb9c2cd, blade: 0x9fb4c8,
+  wet: 0xd7dde5, wetDark: 0x39414f, steel: 0xb9c2cd, blade: 0xcfd9e4,
   green: 0x2f9e6e, lock: 0xffb020, receiver: 0x66c2ff,
   carrot: 0xf28c28, potato: 0xcaa46a, cut: 0xe9d9b8, bin: 0xf4f7fa,
   chute: 0xf4f7fa, error: 0xff4d4d,
@@ -365,6 +387,8 @@ const C = {
 function mat(color, opts = {}) {
   return new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.25, ...opts });
 }
+const STEEL = () => mat(C.steel, { metalness: 0.85, roughness: 0.3 });
+const BLADE = () => mat(C.blade, { metalness: 0.85, roughness: 0.25 });
 
 function buildScene(container) {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -399,160 +423,414 @@ function buildScene(container) {
     const g = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
     g.position.set(x, y, z); g.castShadow = true; g.receiveShadow = true; parent.add(g); return g;
   };
-  const cyl = (rt, rb, h, m, x = 0, y = 0, z = 0, parent = scene, seg = 28) => {
-    const g = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), m);
+  const cyl = (rt, rb, h, m, x = 0, y = 0, z = 0, parent = scene, seg = 28, open = false) => {
+    const g = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg, 1, open), m);
     g.position.set(x, y, z); g.castShadow = true; g.receiveShadow = true; parent.add(g); return g;
   };
+  const sph = (r, m, x = 0, y = 0, z = 0, parent = scene, w = 20, hseg = 14) => {
+    const g = new THREE.Mesh(new THREE.SphereGeometry(r, w, hseg), m);
+    g.position.set(x, y, z); g.castShadow = true; g.receiveShadow = true; parent.add(g); return g;
+  };
+  // Extrude a flat 2D outline (array of [x,y]) along a tapered path.
+  // shapePts outline the part face-on (X=length, Y=vertical);
+  // profilePts [alongZ, verticalY] taper the thickness toward an edge.
+  const extrudeZ = (shapePts, profilePts, m) => {
+    const sh = new THREE.Shape();
+    shapePts.forEach(([x, y], i) => (i ? sh.lineTo(x, y) : sh.moveTo(x, y)));
+    sh.closePath();
+    const g = new THREE.ExtrudeGeometry(sh, {
+      steps: 1, bevelEnabled: true,
+      bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 1,
+      extrudePath: new THREE.CatmullRomCurve3(
+        profilePts.map(([z, y]) => new THREE.Vector3(0, y, z))),
+    });
+    const mesh = new THREE.Mesh(g, m);
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    return mesh;
+  };
+
+  /* ---------- shared part factories (shaped, not boxes) ----------------- */
+
+  // Knife blade: long strip with a tapered cutting edge. Built with length
+  // along X, depth along Y, thickness along Z; the group origin sits at the
+  // blade's drive-tail end so bank translation reads as tip travel.
+  function mkBlade(len) {
+    const t = GEO.bladeThickness, D = GEO.bladeDepth, L = len;
+    const b = extrudeZ(
+      [[0, -D / 2], [L, -D / 2], [L, D / 2], [0, D / 2]],
+      [[-t * 0.45, D / 2], [t * 0.3, D / 2], [t * 0.3, -D * 0.15], [-t * 0.06, -D / 2], [-t * 0.45, -D / 2]],
+      BLADE());
+    const g = new THREE.Group(); g.add(b);
+    const tail = box(0.16, D * 0.55, 0.26, mat(C.wetDark), -0.06, 0, 0, g); // drive tail hook
+    tail.castShadow = false;
+    return g;
+  }
+
+  // Cam: round disc with an offset lobe — the classic cam silhouette.
+  // Disc axis is Y in local space; caller orients.
+  function mkCam(lobeAngle = 0) {
+    const g = new THREE.Group();
+    const R = 0.3, T = 0.12;
+    cyl(R, R, T, mat(C.dryAccent, { metalness: 0.4, roughness: 0.4 }), 0, 0, 0, g, 28);
+    const ax = cyl(0.07, 0.07, T * 2.6, STEEL(), 0, 0, 0, g, 14);
+    ax.castShadow = false;
+    const a0 = lobeAngle - 0.45, a1 = lobeAngle + 0.45;
+    const lobeShape = new THREE.Shape();
+    lobeShape.moveTo(0, 0);
+    lobeShape.lineTo(Math.cos(a0) * R * 0.98, Math.sin(a0) * R * 0.98);
+    lobeShape.absarc(0, 0, R * 1.32, a0, a1, false);
+    lobeShape.lineTo(0, 0);
+    const lobe = new THREE.Mesh(new THREE.ExtrudeGeometry(lobeShape, { depth: T * 0.9, bevelEnabled: false }), mat(C.dryAccent, { metalness: 0.4, roughness: 0.4 }));
+    lobe.rotation.x = -Math.PI / 2; // shape XY plane -> flat, extrusion along Y
+    lobe.position.y = -T * 0.45;
+    lobe.castShadow = true;
+    g.add(lobe);
+    return g;
+  }
+
+  // Gear: disc with rectangular teeth standing proud of the rim.
+  function mkGear(r, teeth, w, m) {
+    const g = new THREE.Group();
+    cyl(r, r, w, m, 0, 0, 0, g, teeth * 2);
+    for (let i = 0; i < teeth; i++) {
+      const a = (i / teeth) * Math.PI * 2;
+      const tooth = box(r * 0.32, w, r * 0.34, m, Math.cos(a) * r * 1.05, 0, Math.sin(a) * r * 1.05, g);
+      tooth.rotation.y = -a;
+    }
+    const hub = cyl(r * 0.3, r * 0.3, w * 1.6, STEEL(), 0, 0, 0, g, 14);
+    hub.castShadow = false;
+    return g;
+  }
+
+  // Drum magazine: half-round cradle that visibly holds the blade stack.
+  function mkDrum(len) {
+    const g = new THREE.Group();
+    const shell = cyl(0.36, 0.36, len, mat(C.wetDark, { transparent: true, opacity: 0.85, side: THREE.DoubleSide }), 0, 0, 0, g, 24, true);
+    shell.castShadow = false;
+    const cap1 = cyl(0.36, 0.36, 0.05, mat(C.wetDark), 0, len / 2, 0, g, 24);
+    const cap2 = cyl(0.36, 0.36, 0.05, mat(C.wetDark), 0, -len / 2, 0, g, 24);
+    cap1.castShadow = cap2.castShadow = false;
+    return g;
+  }
+
+  // Receiver comb: a rail of open slots that blade tips slide into.
+  function mkComb(len, slotEvery, alongX) {
+    const g = new THREE.Group();
+    const m = mat(C.receiver, { metalness: 0.3, roughness: 0.4, transparent: true, opacity: 0.9 });
+    // teeth at midpoints BETWEEN blade lines (plus one past each end) so the
+    // open slots line up exactly with blade lines and blades slide through
+    const toothW = slotEvery * 0.42;
+    const lines = bladeOffsets();
+    const pts = [];
+    for (let i = 0; i < lines.length - 1; i++) pts.push((lines[i] + lines[i + 1]) / 2);
+    pts.push(lines[0] - slotEvery / 2, lines[lines.length - 1] + slotEvery / 2);
+    pts.forEach(off => {
+      if (Math.abs(off) > len / 2 + slotEvery * 0.3) return;
+      if (alongX) box(0.14, 0.34, toothW, m, 0, 0, off, g);
+      else box(toothW, 0.34, 0.14, m, off, 0, 0, g);
+    });
+    g.children.forEach(c => { c.castShadow = false; });
+    return g;
+  }
 
   /* ================= DRY BASE (stays behind on extraction) ============= */
   const dry = new THREE.Group(); scene.add(dry);
   box(4.6, 1.0, 4.0, mat(C.base), 0, 0.5, 0, dry);                 // plinth
   box(4.6, 0.1, 4.0, mat(C.baseDark), 0, 1.05, 0, dry);
+  // feet
+  [[-1.9, -1.6], [1.9, -1.6], [-1.9, 1.6], [1.9, 1.6]].forEach(([x, z]) =>
+    cyl(0.16, 0.2, 0.18, mat(C.baseDark), x, 0.06, z, dry, 16));
 
-  // D1 cycle gearmotor — motor body + shaft + reducer + coupling
+  // D1 cycle gearmotor — finned motor barrel + end cap + gearbox + shaft
   const D1 = new THREE.Group(); dry.add(D1);
-  cyl(0.42, 0.42, 1.0, mat(C.dryAccent, { metalness: 0.5 }), 0, 0, 0, D1);       // motor body
-  cyl(0.5, 0.5, 0.34, mat(C.baseDark), 0, -0.62, 0, D1);                          // gearbox
-  cyl(0.08, 0.08, 0.7, mat(C.steel, { metalness: 0.85 }), 0, 0.85, 0, D1);        // shaft
+  cyl(0.4, 0.4, 0.95, mat(C.dryAccent, { metalness: 0.5 }), 0, 0, 0, D1);          // barrel
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const fin = box(0.05, 0.9, 0.1, mat(C.dryAccent, { metalness: 0.5 }), Math.cos(a) * 0.42, 0, Math.sin(a) * 0.42, D1);
+    fin.rotation.y = -a; fin.castShadow = false;
+  }
+  cyl(0.3, 0.34, 0.16, mat(C.baseDark), 0, 0.55, 0, D1);                            // end cap
+  cyl(0.5, 0.5, 0.36, mat(C.baseDark), 0, -0.64, 0, D1);                            // gearbox
+  const dome = sph(0.5, mat(C.baseDark), 0, -0.82, 0, D1, 20, 10); dome.scale.y = 0.5;
+  cyl(0.08, 0.08, 0.7, STEEL(), 0, 0.98, 0, D1);                                    // shaft
   D1.position.set(-1.6, 1.7, -1.2);
   D1.rotation.z = Math.PI / 2; // shaft along X toward camshaft
 
   // camshaft driven by D1, carrying the five cam take-offs
   const camshaft = new THREE.Group(); dry.add(camshaft);
-  cyl(0.07, 0.07, 3.2, mat(C.steel, { metalness: 0.85 }), 0, 0, 0, camshaft).rotation.z = Math.PI / 2;
+  cyl(0.07, 0.07, 3.2, STEEL(), 0, 0, 0, camshaft).rotation.z = Math.PI / 2;
+  // input gear where D1's shaft meets the camshaft
+  const inGear = mkGear(0.26, 10, 0.12, mat(C.steel, { metalness: 0.7, roughness: 0.35 }));
+  inGear.rotation.z = Math.PI / 2; inGear.position.set(-1.72, 0, 0); camshaft.add(inGear);
   const cams = {};
   const camNames = ['C1', 'C2', 'C3', 'C4', 'C5'];
   camNames.forEach((id, i) => {
-    const cam = new THREE.Group(); camshaft.add(cam);
-    const disc = cyl(0.3, 0.3, 0.12, mat(C.dryAccent), 0, 0, 0, cam, 24);
-    disc.rotation.z = Math.PI / 2;
-    box(0.05, 0.16, 0.05, mat(C.baseDark), 0, 0.3, 0, cam); // cam lobe
+    const cam = mkCam(i * 1.13);         // each lobe keyed to its phase angle
+    cam.rotation.z = Math.PI / 2;        // disc plane perpendicular to the shaft (X)
     cam.position.set(-1.2 + i * 0.6, 0, 0);
+    camshaft.add(cam);
     cams[id] = cam;
   });
   camshaft.position.set(-0.2, 1.7, -1.2);
 
-  // D2 manual cassette latch / release on the dry base front
+  // D2 manual cassette latch / release on the dry base front — lever + pivot + knob
   const D2 = new THREE.Group(); dry.add(D2);
-  box(0.16, 0.5, 0.24, mat(C.lock), 0, 0, 0, D2);
+  cyl(0.1, 0.1, 0.3, STEEL(), 0, 0, 0, D2).rotation.x = Math.PI / 2;     // pivot barrel
+  box(0.09, 0.62, 0.09, mat(C.lock, { metalness: 0.4 }), 0, 0.26, 0, D2);
+  sph(0.09, mat(C.lock, { metalness: 0.4, roughness: 0.4 }), 0, 0.6, 0, D2); // knob
   D2.position.set(1.9, 1.4, 1.9);
 
-  // electronics block (stays dry)
-  const electronics = box(1.2, 0.5, 0.9, mat(C.baseDark), 1.4, 1.3, -1.4, dry);
+  // electronics block (stays dry) — case + cooling slots + status LED
+  const electronics = new THREE.Group(); dry.add(electronics);
+  box(1.2, 0.5, 0.9, mat(C.baseDark), 0, 0, 0, electronics);
+  for (let i = 0; i < 4; i++) box(0.9, 0.03, 0.06, mat(C.base), 0, 0.12 - i * 0.08, 0.46, electronics).castShadow = false;
+  sph(0.045, mat(0x36e07a, { emissive: 0x1a7a40 }), -0.45, 0.16, 0.46, electronics, 10, 8).castShadow = false;
+  electronics.position.set(1.4, 1.3, -1.4);
 
-  // dry→wet coupling that lifts on disengage
-  const coupling = box(0.5, 0.22, 0.5, mat(C.green), -0.2, 2.0, -0.2, dry);
+  // dry/wet coupling that lifts on disengage — splined collar
+  const coupling = new THREE.Group(); dry.add(coupling);
+  cyl(0.2, 0.24, 0.2, mat(C.green, { metalness: 0.5 }), 0, 0, 0, coupling, 20);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    box(0.05, 0.12, 0.05, mat(C.green, { metalness: 0.5 }), Math.cos(a) * 0.2, 0.1, Math.sin(a) * 0.2, coupling).castShadow = false;
+  }
+  coupling.position.set(-0.2, 2.0, -0.2);
 
   /* ================= WET CASSETTE (extracts + unfolds) ================= */
   // cassette root translates on extraction; two halves fan on unfold.
   const cassette = new THREE.Group(); scene.add(cassette);
   const halfL = new THREE.Group(); cassette.add(halfL);  // pivots about rear hinge
   const halfR = new THREE.Group(); cassette.add(halfR);
+  // rear hinge barrel the halves fan about
+  cyl(0.09, 0.09, 2.0, STEEL(), -1.15, 2.4, 0, cassette).rotation.x = Math.PI / 2;
 
-  // chamber + chute (left half)
-  box(GEO.chamber.w, GEO.chamber.h, GEO.chamber.d, mat(C.wet, { transparent: true, opacity: 0.16 }), 0, GEO.chamber.floorY + GEO.chamber.h / 2, 0, halfL).castShadow = false;
-  const chute = cyl(0.6, 0.6, 1.6, mat(C.chute, { transparent: true, opacity: 0.3 }), 0, GEO.chuteTop - 0.8, 0, halfL);
-  chute.castShadow = false;
+  // chamber (left half) — open-top wall shell + floor plate, not a solid block
+  {
+    const { w, h, d, floorY } = GEO.chamber;
+    const wall = 0.07, yc = floorY + h / 2;
+    const wm = () => mat(C.wet, { transparent: true, opacity: 0.16, side: THREE.DoubleSide });
+    const mkWall = (ww, hh, dd, x, y, z) => { const m = box(ww, hh, dd, wm(), x, y, z, halfL); m.castShadow = false; return m; };
+    mkWall(w, h, wall, 0, yc, d / 2 - wall / 2);    // +Z wall
+    mkWall(w, h, wall, 0, yc, -d / 2 + wall / 2);   // -Z wall
+    mkWall(wall, h, d, -w / 2 + wall / 2, yc, 0);   // -X wall
+    mkWall(w, wall, d, 0, floorY + wall / 2, 0);    // floor plate
+  }
+  // feed chute (left half) — square hopper: four neck walls + flared mouth + lip
+  {
+    const hop = () => mat(C.chute, { transparent: true, opacity: 0.3, side: THREE.DoubleSide });
+    const neckY = GEO.chuteTop - 1.5;
+    [box(0.07, 1.5, 1.36, hop(), 0.68, neckY, 0, halfL),
+     box(0.07, 1.5, 1.36, hop(), -0.68, neckY, 0, halfL),
+     box(1.36, 1.5, 0.07, hop(), 0, neckY, 0.68, halfL),
+     box(1.36, 1.5, 0.07, hop(), 0, neckY, -0.68, halfL)].forEach(m => { m.castShadow = false; });
+    const flare = cyl(1.0, 0.72, 0.55, hop(), 0, GEO.chuteTop - 0.32, 0, halfL, 4, true);
+    flare.rotation.y = Math.PI / 4; flare.castShadow = false;
+    const lip = cyl(1.04, 1.04, 0.09, mat(C.chute, { transparent: true, opacity: 0.5 }), 0, GEO.chuteTop - 0.04, 0, halfL, 4, true);
+    lip.rotation.y = Math.PI / 4; lip.castShadow = false;
+  }
 
-  // --- X-bank blades (slide along X) on halfR, Z-bank (slide along Z) on halfL
+  // --- X-bank blades (slide along X) on halfR, Z-bank (slide along Z) on halfL.
+  // Each blade strip is long enough that at full extension it spans from the
+  // origin magazine, through the wiper, across the chamber, and into the far
+  // receiver comb — so it never pops in/out; it slides.
   const offs = bladeOffsets();
   const xBlades = [], zBlades = [];
+  const BLADE_LEN = GEO.parts.bladeLen;
   offs.forEach((o) => {
-    // X bank blade: thin strip spanning Z, travels along X at xBankY
-    const bx = box(GEO.bladeDepth, GEO.bladeThickness, GEO.chamber.d - 0.1, mat(C.blade, { metalness: 0.7, roughness: 0.3 }),
-      GEO.xTravelMin, GEO.xBankY, o, halfR);
-    bx.visible = false; xBlades.push(bx);
+    // X bank blade: strip spanning Z, travels along X at xBankY, edge down
+    const bx = mkBlade(BLADE_LEN);
+    bx.rotation.y = -Math.PI / 2;   // length along Z
+    bx.rotation.x = Math.PI / 2;    // taper points down (cutting edge)
+    bx.position.set(GEO.xTravelMin, GEO.xBankY, o);
+    bx.visible = false; halfR.add(bx); xBlades.push(bx);
     // Z bank blade: spans X, travels along Z at zBankY
-    const bz = box(GEO.chamber.w - 0.1, GEO.bladeThickness, GEO.bladeDepth, mat(C.blade, { metalness: 0.7, roughness: 0.3 }),
-      o, GEO.zBankY, GEO.zTravelMin, halfL);
-    bz.visible = false; zBlades.push(bz);
+    const bz = mkBlade(BLADE_LEN);
+    bz.rotation.x = Math.PI / 2;
+    bz.position.set(o, GEO.zBankY, GEO.zTravelMin);
+    bz.visible = false; halfL.add(bz); zBlades.push(bz);
   });
 
-  // origin magazines (explicit storage length — no tiny boxes)
-  box(GEO.magazine.length, 0.5, GEO.chamber.d, mat(C.wetDark), GEO.magazine.xX - 0.85, GEO.xBankY, 0, halfR).castShadow = false;
-  box(GEO.chamber.w, 0.5, GEO.magazine.length, mat(C.wetDark), 0, GEO.zBankY, GEO.magazine.xZ - 0.85, halfL).castShadow = false;
+  // origin magazines — half-round drums the blade stacks live in
+  const xMag = mkDrum(GEO.chamber.d + 0.2); halfR.add(xMag);
+  xMag.rotation.x = Math.PI / 2; // drum axis along Z (blade length)
+  xMag.position.set(GEO.magazine.xX - 0.5, GEO.xBankY, 0);
+  const zMag = mkDrum(GEO.chamber.w + 0.2); halfL.add(zMag);
+  zMag.rotation.z = Math.PI / 2; // drum axis along X
+  zMag.position.set(0, GEO.zBankY, GEO.magazine.xZ - 0.5);
 
-  // wipers at the food-zone/storage boundary
-  const xWiper = box(0.12, 0.5, GEO.chamber.d, mat(C.green), GEO.xTravelMin + 0.1, GEO.xBankY, 0, halfR);
-  const zWiper = box(GEO.chamber.w, 0.5, 0.12, mat(C.green), 0, GEO.zBankY, GEO.zTravelMin + 0.1, halfL);
+  // wipers at the food-zone/storage boundary — squeegee blocks with lips
+  const xWiper = box(0.1, 0.34, GEO.chamber.d, mat(C.green, { roughness: 0.7 }), GEO.xTravelMin + GEO.parts.wiperOffset, GEO.xBankY, 0, halfR);
+  const xWiperLip = box(0.06, 0.12, GEO.chamber.d, mat(C.green, { roughness: 0.7 }), GEO.xTravelMin + GEO.parts.wiperOffset + 0.06, GEO.xBankY - 0.2, 0, halfR);
+  const zWiper = box(GEO.chamber.w, 0.34, 0.1, mat(C.green, { roughness: 0.7 }), 0, GEO.zBankY, GEO.zTravelMin + GEO.parts.wiperOffset, halfL);
+  const zWiperLip = box(GEO.chamber.w, 0.12, 0.06, mat(C.green, { roughness: 0.7 }), 0, GEO.zBankY - 0.2, GEO.zTravelMin + GEO.parts.wiperOffset + 0.06, halfL);
 
-  // far receivers: open-through channels beyond the far lock plane
-  box(0.2, 0.4, GEO.chamber.d, mat(C.receiver), GEO.xTravelMax + 0.2, GEO.xBankY, 0, halfR).castShadow = false;
-  box(GEO.chamber.w, 0.4, 0.2, mat(C.receiver), 0, GEO.zBankY, GEO.zTravelMax + 0.2, halfL).castShadow = false;
+  // far receivers: open-through combs the blade tips seat into
+  const xRecv = mkComb(GEO.chamber.d, GEO.pitch, true); halfR.add(xRecv);
+  xRecv.position.set(GEO.xTravelMax + GEO.parts.combOffset, GEO.xBankY, 0);
+  const zRecv = mkComb(GEO.chamber.w, GEO.pitch, false); halfL.add(zRecv);
+  zRecv.position.set(0, GEO.zBankY, GEO.zTravelMax + GEO.parts.combOffset);
 
-  // origin + far lock rails (move normal to blade-tip support)
-  const originRailX = box(0.18, 0.5, GEO.chamber.d, mat(C.lock), GEO.xTravelMin - 0.2, GEO.xBankY, 0, halfR);
-  const farRailX = box(0.18, 0.5, GEO.chamber.d, mat(C.lock), GEO.xTravelMax + 0.45, GEO.xBankY, 0, halfR);
-  const originRailZ = box(GEO.chamber.w, 0.5, 0.18, mat(C.lock), 0, GEO.zBankY, GEO.zTravelMin - 0.2, halfL);
-  const farRailZ = box(GEO.chamber.w, 0.5, 0.18, mat(C.lock), 0, GEO.zBankY, GEO.zTravelMax + 0.45, halfL);
+  // origin + far lock rails (move normal to blade-tip support). Both are
+  // combs: blades pass through the slots; the rail teeth bear on the blade
+  // side faces between slots, so the rail can close without colliding.
+  const railM = () => mat(C.lock, { metalness: 0.4, roughness: 0.4 });
+  const mkLockRail = (alongX) => {
+    const g = mkComb(GEO.chamber.d, GEO.pitch, alongX);
+    g.children.forEach(c => { c.material = railM(); });
+    const back = alongX
+      ? box(0.1, 0.4, GEO.chamber.d, railM(), alongX ? -0.12 : 0, -0.02, 0, g)
+      : box(GEO.chamber.w, 0.4, 0.1, railM(), 0, -0.02, -0.12, g);
+    back.castShadow = false;
+    return g;
+  };
+  const originRailX = mkLockRail(true); halfR.add(originRailX);
+  originRailX.position.set(GEO.xTravelMin - GEO.parts.railOffsetOrigin, GEO.xBankY, 0);
+  const farRailX = mkLockRail(true); halfR.add(farRailX);
+  farRailX.position.set(GEO.xTravelMax + GEO.parts.railOffsetFar, GEO.xBankY, 0);
+  const originRailZ = mkLockRail(false); halfL.add(originRailZ);
+  originRailZ.position.set(0, GEO.zBankY, GEO.zTravelMin - GEO.parts.railOffsetOrigin);
+  const farRailZ = mkLockRail(false); halfL.add(farRailZ);
+  farRailZ.position.set(0, GEO.zBankY, GEO.zTravelMax + GEO.parts.railOffsetFar);
 
-  // common selector shuttle: one X arm + one Z arm
+  // common selector shuttle: one X arm + one Z arm, shaped as finger combs
+  // that hook the drive tails of the selected blades
   const shuttle = new THREE.Group(); dry.add(shuttle);
-  const shuttleArmX = box(0.5, 0.12, GEO.chamber.d, mat(C.dryAccent), GEO.xTravelMin - 0.6, GEO.xBankY, 0, shuttle);
-  const shuttleArmZ = box(GEO.chamber.w, 0.12, 0.5, mat(C.dryAccent), 0, GEO.zBankY, GEO.zTravelMin - 0.6, shuttle);
+  const fingerM = mat(C.dryAccent, { metalness: 0.45, roughness: 0.4 });
+  const shuttleArmX = new THREE.Group(); shuttle.add(shuttleArmX);
+  box(0.34, 0.12, GEO.chamber.d, fingerM, 0, 0, 0, shuttleArmX);
+  offs.forEach(o => { box(0.3, 0.1, 0.1, fingerM, 0.3, 0, o, shuttleArmX).castShadow = false; });
+  shuttleArmX.position.set(GEO.xTravelMin - 0.6, GEO.xBankY, 0);
+  const shuttleArmZ = new THREE.Group(); shuttle.add(shuttleArmZ);
+  box(GEO.chamber.w, 0.12, 0.34, fingerM, 0, 0, 0, shuttleArmZ);
+  offs.forEach(o => { box(0.1, 0.1, 0.3, fingerM, o, 0, 0.3, shuttleArmZ).castShadow = false; });
+  shuttleArmZ.position.set(0, GEO.zBankY, GEO.zTravelMin - 0.6);
 
-  // --- pusher: open lattice with a clearance slot at every blade line
+  // --- pusher: slotted plate — fingers pass between blade lines so the
+  // plate can drive produce all the way through the grid. A slot (gap)
+  // aligns with every blade line; material sits between lines.
   const pusher = new THREE.Group(); cassette.add(pusher);
   const p = GEO.pusher;
-  const latticeMat = mat(C.wet, { metalness: 0.2, roughness: 0.4 });
-  // frame rim
-  box(GEO.chamber.w, p.faceThickness, 0.12, latticeMat, 0, 0, GEO.chamber.d / 2 - 0.06, pusher);
-  box(GEO.chamber.w, p.faceThickness, 0.12, latticeMat, 0, 0, -GEO.chamber.d / 2 + 0.06, pusher);
-  box(0.12, p.faceThickness, GEO.chamber.d, latticeMat, GEO.chamber.w / 2 - 0.06, 0, 0, pusher);
-  box(0.12, p.faceThickness, GEO.chamber.d, latticeMat, -GEO.chamber.w / 2 + 0.06, 0, 0, pusher);
-  // ribs BETWEEN blade lines so slots line up with blades (slots stay empty)
+  const plateM = mat(C.wet, { metalness: 0.2, roughness: 0.4 });
+  const T = p.faceThickness;
+  {
+    const mid = (GEO.bladesPerBank - 1) / 2;
+    const edge = GEO.chamber.w / 2;
+    for (let i = 0; i <= GEO.bladesPerBank; i++) {
+      const a = (i - mid - 0.5) * GEO.pitch;           // slot centred on blade line i
+      const b2 = i === GEO.bladesPerBank ? edge : (i - mid + 0.5) * GEO.pitch;
+      const c0 = Math.max(-edge, a + GEO.bladeThickness / 2 + 0.02);
+      const c1 = Math.min(edge, b2 - GEO.bladeThickness / 2 - 0.02);
+      if (c1 - c0 > 0.05) box(GEO.chamber.w - 0.1, T, c1 - c0, plateM, 0, 0, (c0 + c1) / 2, pusher);
+    }
+    // rim
+    box(GEO.chamber.w, T * 1.1, 0.1, plateM, 0, 0.02, GEO.chamber.d / 2 - 0.05, pusher);
+    box(GEO.chamber.w, T * 1.1, 0.1, plateM, 0, 0.02, -GEO.chamber.d / 2 + 0.05, pusher);
+  }
+  // underside ribs between blade lines stiffen the plate
   offs.forEach((o) => {
-    const gap = o - GEO.pitch / 2; // rib offset half a pitch away from each blade line
+    const gap = o - GEO.pitch / 2;
     if (Math.abs(gap) < GEO.chamber.d / 2 - 0.1) {
-      box(GEO.chamber.w - 0.2, p.faceThickness * 0.8, p.slotWidth * 0.5, latticeMat, 0, 0, gap, pusher);
+      box(GEO.chamber.w - 0.2, T * 0.8, GEO.pitch * 0.3, plateM, 0, -(T / 2 + T * 0.4), gap, pusher).castShadow = false;
     }
   });
-  // side guide shoes + drive collar
+  // side guide shoes + drive screw collar on top
   box(0.1, 0.4, 0.3, mat(C.green), GEO.chamber.w / 2 + 0.05, 0, 0, pusher);
   box(0.1, 0.4, 0.3, mat(C.green), -GEO.chamber.w / 2 - 0.05, 0, 0, pusher);
-  const driveCollar = cyl(0.18, 0.18, 0.3, mat(C.dryAccent, { metalness: 0.6 }), 0, 0.32, 0, pusher);
+  const driveCollar = cyl(0.16, 0.19, 0.34, mat(C.dryAccent, { metalness: 0.6 }), 0, 0.34, 0, pusher, 20);
+  const driveScrew = cyl(0.06, 0.06, 1.1, STEEL(), 0, 1.0, 0, pusher, 12);
+  driveScrew.castShadow = false;
   pusher.position.set(0, p.serviceY, 0);
 
-  // stripper plate (moves relative to pusher)
+  // stripper plate — perforated plate that strips stuck pieces off the
+  // pusher fingers as it returns
   const stripper = new THREE.Group(); cassette.add(stripper);
-  box(GEO.chamber.w - 0.15, 0.08, GEO.chamber.d - 0.15, mat(C.green), 0, 0, 0, stripper);
+  {
+    const sm = mat(C.green, { roughness: 0.6 });
+    const w2 = GEO.chamber.w - 0.15, d2 = GEO.chamber.d - 0.15;
+    box(w2, 0.07, 0.5, sm, 0, 0, d2 / 2 - 0.25, stripper);
+    box(w2, 0.07, 0.5, sm, 0, 0, -d2 / 2 + 0.25, stripper);
+    const mid = (GEO.bladesPerBank - 1) / 2;
+    for (let i = 0; i <= GEO.bladesPerBank; i += 2) {
+      const c0 = (i - mid - 0.5) * GEO.pitch, c1 = (i - mid + 0.5) * GEO.pitch;
+      if (Math.abs((c0 + c1) / 2) < d2 / 2 - 0.5)
+        box(w2, 0.07, Math.min(0.34, c1 - c0 - 0.12), sm, 0, 0, (c0 + c1) / 2, stripper).castShadow = false;
+    }
+  }
   stripper.position.set(0, p.serviceY + 0.25, 0);
 
-  // crosscut knife + carrier (below both banks, travels along X)
+  // crosscut knife + carrier (below both banks, travels along X) —
+  // long knife with a ground bevel edge, held by a carrier shoe on a rail
   const crosscut = new THREE.Group(); cassette.add(crosscut);
-  box(GEO.chamber.w - 0.1, 0.06, 0.22, mat(C.blade, { metalness: 0.8, roughness: 0.25 }), 0, 0, 0, crosscut);
-  box(0.3, 0.2, 0.34, mat(C.wetDark), -GEO.chamber.w / 2, 0, 0, crosscut); // carrier shoe
+  {
+    const knife = extrudeZ(
+      [[-(GEO.chamber.w / 2 - 0.05), -0.11], [GEO.chamber.w / 2 - 0.05, -0.11], [GEO.chamber.w / 2 - 0.05, 0.11], [-(GEO.chamber.w / 2 - 0.05), 0.11]],
+      [[-0.05, 0.11], [0.045, 0.11], [0.045, -0.04], [-0.02, -0.11], [-0.05, -0.11]],
+      BLADE());
+    crosscut.add(knife);
+    const shoe = box(0.3, 0.22, 0.4, mat(C.wetDark), -GEO.chamber.w / 2 - 0.1, 0, 0, crosscut);
+    shoe.castShadow = false;
+    const rail = cyl(0.05, 0.05, 4.6, STEEL(), 0, -0.2, 0, crosscut, 12);
+    rail.rotation.z = Math.PI / 2; rail.castShadow = false;
+  }
   crosscut.position.set(GEO.crosscut.dockX, GEO.crosscutY, 0);
 
-  // output bin / food zone under the grid
+  // output bin — open-top tub with wall shell, base plate and a handle
   const bin = new THREE.Group(); cassette.add(bin);
-  box(1.9, 0.8, 1.9, mat(C.bin, { transparent: true, opacity: 0.28 }), 0, 0, 0, bin).castShadow = false;
-  box(1.9, 0.08, 1.9, mat(C.steel), 0, -0.44, 0, bin);
-  bin.position.set(0, 0.85, 0);
+  {
+    const bm = () => mat(C.bin, { transparent: true, opacity: 0.3, side: THREE.DoubleSide });
+    const wallT = 0.06, bw = 1.9, bh = 0.8, bd = 1.9;
+    [[bw, bh, wallT, 0, 0, bd / 2], [bw, bh, wallT, 0, 0, -bd / 2],
+     [wallT, bh, bd, bw / 2, 0, 0], [wallT, bh, bd, -bw / 2, 0, 0]].forEach(([w, h, d, x, y, z]) => {
+      const m2 = box(w, h, d, bm(), x, y, z, bin); m2.castShadow = false;
+    });
+    box(bw, 0.08, bd, mat(C.steel, { metalness: 0.6, roughness: 0.4 }), 0, -bh / 2 - 0.04, 0, bin);
+    // handle across the front wall
+    const handle = cyl(0.04, 0.04, bw * 0.5, STEEL(), 0, bh / 2 + 0.12, bd / 2 + 0.08, bin, 12);
+    handle.rotation.z = Math.PI / 2; handle.castShadow = false;
+    box(0.05, 0.14, 0.05, STEEL(), -bw * 0.25, bh / 2 + 0.04, bd / 2 + 0.08, bin).castShadow = false;
+    box(0.05, 0.14, 0.05, STEEL(), bw * 0.25, bh / 2 + 0.04, bd / 2 + 0.08, bin).castShadow = false;
+  }
+  bin.position.set(0, 0.72, 0);
 
   // produce models
   const mkCarrot = () => {
     const g = new THREE.Group();
-    const c = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.02, 1.5, 18), mat(C.carrot, { roughness: 0.6 }));
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.03, 1.6, 18), mat(C.carrot, { roughness: 0.6 }));
     c.castShadow = true; g.add(c);
-    const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.3, 8), mat(C.green));
-    leaf.position.y = 0.9; g.add(leaf); return g;
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.14, 10), mat(C.carrot, { roughness: 0.6 }));
+    tip.position.y = -0.86; tip.rotation.x = Math.PI; g.add(tip);
+    for (let i = 0; i < 3; i++) {
+      const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.42, 6), mat(C.green, { roughness: 0.7 }));
+      leaf.position.set((i - 1) * 0.07, 0.95, (i % 2) * 0.05 - 0.02);
+      leaf.rotation.z = (i - 1) * 0.35; g.add(leaf);
+    }
+    return g;
   };
   const mkPotato = () => {
     const g = new THREE.Group();
-    const s = new THREE.Mesh(new THREE.SphereGeometry(0.5, 22, 16), mat(C.potato, { roughness: 0.85 }));
-    s.scale.set(1, 0.8, 0.85); s.castShadow = true; g.add(s); return g;
+    const s = new THREE.Mesh(new THREE.SphereGeometry(0.52, 22, 16), mat(C.potato, { roughness: 0.85 }));
+    s.scale.set(1, 0.78, 0.85); s.castShadow = true; g.add(s);
+    [[0.3, 0.25, 0.3], [-0.25, 0.3, -0.2], [0.1, -0.3, 0.35]].forEach(([x, y, z]) =>
+      sph(0.035, mat(0x9c7c4e, { roughness: 0.9 }), x, y, z, g, 8, 6).castShadow = false);
+    return g;
   };
   const produce = { carrot: mkCarrot(), potato: mkPotato() };
   produce.carrot.position.set(0, GEO.chuteTop + 0.6, 0); produce.carrot.visible = false; cassette.add(produce.carrot);
   produce.potato.position.set(0, GEO.chuteTop + 0.6, 0); produce.potato.visible = false; cassette.add(produce.potato);
 
-  // cut pieces pool (provenance-driven visibility)
-  const PIECES = 40; const pieces = [];
-  for (let i = 0; i < PIECES; i++) {
-    const m = box(0.16, 0.16, 0.16, mat(C.cut), 0, 0, 0, cassette);
-    m.visible = false; pieces.push(m);
-  }
+  // cut piece pools — sticks (grid-only), cubes (dice), coins (slice);
+  // visibility is provenance-driven from state
+  const mkPool = (n, make) => {
+    const arr = [];
+    for (let i = 0; i < n; i++) { const m = make(); m.visible = false; cassette.add(m); arr.push(m); }
+    return arr;
+  };
+  const sticks = mkPool(16, () => box(0.3, 0.3, 1.05, mat(C.cut, { roughness: 0.7 })));
+  const cubes = mkPool(32, () => box(0.24, 0.24, 0.24, mat(C.cut, { roughness: 0.7 })));
+  const coins = mkPool(16, () => cyl(0.24, 0.24, 0.07, mat(C.carrot, { roughness: 0.65 }), 0, 0, 0, new THREE.Group(), 20));
+  coins.forEach(c => { const g = new THREE.Group(); g.add(c); cassette.add(g); });
+  const coinGroups = coins.map(c => c.parent);
+  const piecePools = { stick: sticks, cube: cubes, coin: coinGroups };
 
   // active-mechanism motion arrow (repositioned per phase)
   const arrow = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(), 1.4, 0x00ff9d, 0.3, 0.18);
@@ -562,50 +840,61 @@ function buildScene(container) {
     renderer, scene, camera,
     nodes: {
       dry, cassette, halfL, halfR, D1, camshaft, cams, D2, electronics, coupling,
-      xBlades, zBlades, xWiper, zWiper, originRailX, farRailX, originRailZ, farRailZ,
+      xBlades, zBlades, xWiper, zWiper, xWiperLip, zWiperLip, xMag, zMag, xRecv, zRecv,
+      originRailX, farRailX, originRailZ, farRailZ,
       shuttle, shuttleArmX, shuttleArmZ, pusher, driveCollar, stripper, crosscut, bin,
-      produce, pieces, arrow,
+      produce, piecePools, arrow,
     },
   };
+}
+
+// Scatter pieces loosely in the bin — deterministic spiral layout per index.
+function pileInBin(m, i, n) {
+  const golden = 2.39996;
+  const r = 0.12 + 0.62 * Math.sqrt((i + 0.5) / Math.max(1, n));
+  const a = i * golden;
+  m.position.set(Math.cos(a) * r, 0.62 + Math.floor(i / 9) * 0.17, Math.sin(a) * r);
+  m.rotation.set((i * 0.7) % 1.2 - 0.6, a, (i * 1.1) % 0.9 - 0.45);
 }
 
 // Map a kinematic state onto the scene graph.
 function applyStateToScene(nodes, s, camAngle) {
   const {
-    cassette, halfL, halfR, cams, coupling, D2,
+    cassette, halfL, halfR, coupling, D2, D1,
     xBlades, zBlades, originRailX, farRailX, originRailZ, farRailZ,
-    shuttle, pusher, stripper, crosscut, produce, pieces, arrow, camshaft,
+    shuttle, pusher, stripper, crosscut, produce, piecePools, arrow, camshaft,
   } = nodes;
   const P = GEO.pusher;
 
-  // camshaft + cams rotate with selector/cycle progress
+  // camshaft + cams rotate with cycle progress; D1 shaft counter-rotates
   camshaft.rotation.x = (s.selectorProgress + s.feedProgress + camAngle) * Math.PI * 2;
+  D1.rotation.x = -camshaft.rotation.x * 2.5;
 
-  // selector shuttle stroke (C1)
-  shuttle.position.x = s.selectorProgress * 0.0; // hub stays; arms advance carriers
-  shuttle.position.z = 0;
-
-  // blades: only engaged indices extend; travel along their axis
+  // blades: engaged blades slide out of the origin magazine, through the
+  // wiper, across the chamber, and into the far receiver comb. They are
+  // visible while any part of the strip has left the magazine (no pop-in).
   const engaged = new Set(s.selectedIndices);
+  const travelX = GEO.xTravelMax - GEO.xTravelMin;
+  const travelZ = GEO.zTravelMax - GEO.zTravelMin;
   xBlades.forEach((b, i) => {
     const on = engaged.has(i) && s.tailEngaged[i];
-    b.visible = on && s.bladeExtend > 0.001;
-    const x = GEO.xTravelMin + (GEO.xTravelMax - GEO.xTravelMin) * s.bladeExtend;
-    b.position.x = on ? x : GEO.xTravelMin;
+    const ext = on ? s.bladeExtend : 0;
+    b.visible = ext > 0.001;
+    b.position.x = GEO.xTravelMin - GEO.parts.bladeParkedInset + (travelX + GEO.parts.bladeOvertravel) * ext;
   });
   zBlades.forEach((b, i) => {
     const on = engaged.has(i) && s.tailEngaged[i];
-    b.visible = on && s.bladeExtend > 0.001;
-    const z = GEO.zTravelMin + (GEO.zTravelMax - GEO.zTravelMin) * s.bladeExtend;
-    b.position.z = on ? z : GEO.zTravelMin;
+    const ext = on ? s.bladeExtend : 0;
+    b.visible = ext > 0.001;
+    b.position.z = GEO.zTravelMin - GEO.parts.bladeParkedInset + (travelZ + GEO.parts.bladeOvertravel) * ext;
   });
 
   // lock rails close normal to blade tips
-  const lockIn = 0.28;
-  originRailX.position.x = GEO.xTravelMin - 0.2 + s.originLock * lockIn;
-  farRailX.position.x = GEO.xTravelMax + 0.45 - s.farLock * lockIn;
-  originRailZ.position.z = GEO.zTravelMin - 0.2 + s.originLock * lockIn;
-  farRailZ.position.z = GEO.zTravelMax + 0.45 - s.farLock * lockIn;
+  const lockIn = GEO.parts.lockStroke;
+  originRailX.position.x = GEO.xTravelMin - GEO.parts.railOffsetOrigin + s.originLock * lockIn;
+  farRailX.position.x = GEO.xTravelMax + GEO.parts.railOffsetFar - s.farLock * lockIn;
+  originRailZ.position.z = GEO.zTravelMin - GEO.parts.railOffsetOrigin + s.originLock * lockIn;
+  farRailZ.position.z = GEO.zTravelMax + GEO.parts.railOffsetFar - s.farLock * lockIn;
 
   // pusher + stripper
   pusher.position.y = s.pusherY;
@@ -614,33 +903,35 @@ function applyStateToScene(nodes, s, camAngle) {
   // crosscut
   crosscut.position.x = s.crosscutX;
 
-  // produce: visible while loaded and not yet fed
+  // produce: visible while loaded and not yet fed; sinks as it is pushed
   ['carrot', 'potato'].forEach((kind) => {
     const m = produce[kind];
     if (s.produce === kind && s.produceLoaded && s.feedProgress < 0.999) {
       m.visible = true;
-      const settle = Math.min(1, s.feedProgress * 3 + 0.4);
-      m.position.y = GEO.chuteTop + 0.6 - (1 - Math.min(1, s.bladeExtend)) * 0 - (s.produceLoaded ? 2.0 : 0);
-      m.position.y = GEO.chamber.floorY + 0.9 + (1 - s.feedProgress) * 1.6; // sink as fed
+      m.position.y = GEO.chamber.floorY + 0.9 + (1 - s.feedProgress) * 1.6;
+      m.rotation.y = kind === 'carrot' ? 0.2 : 0;
     } else m.visible = false;
   });
 
-  // cut pieces: shown after feed, count from state provenance
-  pieces.forEach((m, i) => {
-    const on = i < s.cutPieces.length && s.feedProgress >= 0.999 && s.extractProgress <= 0;
-    m.visible = on;
-    if (on) {
-      const col = i % 7, row = Math.floor(i / 7) % 3, lay = Math.floor(i / 21);
-      m.position.set((col - 3) * 0.24, 0.55 + lay * 0.2, (row - 1) * 0.3);
-    }
+  // cut pieces: kind from state provenance; shown after feed, binned until wash
+  const counts = { stick: 0, cube: 0, coin: 0 };
+  s.cutPieces.forEach(pc => { counts[pc.kind] = (counts[pc.kind] || 0) + 1; });
+  Object.entries(piecePools).forEach(([kind, pool]) => {
+    const n = counts[kind] || 0;
+    pool.forEach((m, i) => {
+      const on = i < n && s.feedProgress >= 0.999 && s.extractProgress <= 0;
+      m.visible = on;
+      if (on) pileInBin(m, i, Math.max(n, 1));
+    });
   });
 
-  // dry→wet coupling lifts on disengage; D2 latch pivots
+  // dry/wet coupling lifts on disengage; D2 latch lever swings
   coupling.position.y = 2.0 + (s.couplingEngaged ? 0 : 0.35);
   coupling.visible = s.extractProgress <= 0.001;
-  D2.rotation.z = -(s.couplingEngaged ? 0 : 0.6) - s.extractProgress * 0.2;
+  coupling.rotation.y = camAngle * 2;
+  D2.rotation.x = -(s.couplingEngaged ? 0 : 0.6) - s.extractProgress * 0.2;
 
-  // cassette extraction (+Z) then unfold (fan of halves about rear edge)
+  // cassette extraction (+Z) then unfold (fan of halves about the rear hinge)
   cassette.position.z = GEO.cassette.seatZ + s.extractProgress * GEO.cassette.extractTravel;
   const a = s.unfoldProgress * GEO.cassette.unfoldAngle;
   halfL.rotation.z = a * 0.5;
@@ -653,7 +944,7 @@ function applyStateToScene(nodes, s, camAngle) {
   const mechPos = {
     C1: [GEO.xTravelMin - 0.6, GEO.xBankY, 0, 1, 0, 0],
     selectorShuttle: [GEO.xTravelMin - 0.6, GEO.zBankY, 0, 0, 0, 1],
-    C2: [GEO.xTravelMax + 0.45, GEO.xBankY, 0, -1, 0, 0],
+    C2: [GEO.xTravelMax + GEO.parts.railOffsetFar, GEO.xBankY, 0, -1, 0, 0],
     C3: [0, s.pusherY, 0, 0, -1, 0],
     C4: [s.crosscutX, GEO.crosscutY, 0, 1, 0, 0],
     C5: [0, s.pusherY + 0.2, 0, 0, -1, 0],

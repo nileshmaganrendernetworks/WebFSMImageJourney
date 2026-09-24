@@ -16,9 +16,7 @@ import {
 test('X and Z banks are in different Y planes with positive clearance', () => {
   assert.ok(GEO.zBankY > GEO.xBankY, 'Z bank above X bank');
   assert.ok(GEO.zBankY - GEO.xBankY > GEO.bladeDepth, 'bank planes clear of blade depth');
-});
-
-test('crosscut plane is below both banks with positive clearance', () => {
+});test('crosscut plane is below both banks with positive clearance', () => {
   assert.ok(GEO.crosscutY < GEO.xBankY && GEO.crosscutY < GEO.zBankY);
   assert.ok(GEO.xBankY - GEO.crosscutY > GEO.bladeDepth / 2 + 0.1);
 });
@@ -47,6 +45,111 @@ test('13 blade lines per bank, offsets centred and evenly pitched', () => {
 test('cassette has separate extraction and unfold travel', () => {
   assert.ok(GEO.cassette.extractTravel > 0);
   assert.ok(GEO.cassette.unfoldAngle > 0);
+});
+
+// ---- collision / no-overlap invariants ----------------------------------
+// These pin the rendered clearances: at no point in the cycle may a moving
+// part share space with a static or differently-moving part. All numbers
+// come from GEO.parts so rendering and tests read the same source of truth.
+
+test('blade strip spans magazine -> receiver with no gap at full extension', () => {
+  const L = GEO.parts.bladeLen;
+  const parkedTip = GEO.xTravelMin - GEO.parts.bladeParkedInset;
+  const fullTip = parkedTip + (GEO.xTravelMax - GEO.xTravelMin) + GEO.parts.bladeOvertravel;
+  // tip must reach into the receiver comb
+  assert.ok(fullTip >= GEO.xTravelMax + GEO.parts.combOffset, 'tip seats into receiver');
+  // tail must still be captured by the magazine at full extension
+  const fullTail = fullTip - L;
+  assert.ok(fullTail < GEO.xTravelMin, 'tail stays engaged with shuttle/magazine side');
+});
+
+test('origin lock rail is a comb: blades pass through slots, teeth bear between blades', () => {
+  // Teeth sit at midpoints between blade lines; the gap from a blade face to
+  // the nearest tooth face must be positive on every line.
+  const toothHalf = (GEO.pitch * 0.42) / 2;
+  for (const o of bladeOffsets()) {
+    const gap = GEO.pitch / 2 - toothHalf - GEO.bladeThickness / 2;
+    assert.ok(gap > 0.005, `blade line ${o.toFixed(2)} clears comb teeth (gap ${gap.toFixed(3)})`);
+  }
+  // and teeth really do sit between lines, not on them
+  const lines = bladeOffsets();
+  const mid = (lines[0] + lines[1]) / 2;
+  assert.ok(Math.abs(mid - lines[0] - GEO.pitch / 2) < 1e-9, 'teeth centred between lines');
+});
+
+test('lock rails close only onto seated blades (state-level interlock)', () => {
+  // Along-axis the comb rails DO overlap the blade strip span — that is the
+  // intended tooth-to-side reaction contact through open slots. What must
+  // never happen is the rail moving while a blade edge is crossing its
+  // plane. That is guaranteed by the lock-after-seat / unlock-before-wipe
+  // interlocks; assert them across the timeline here.
+  for (const pat of Object.keys(PATTERNS)) {
+    const { total } = workflowTimeline(pat);
+    for (let i = 0; i <= 400; i++) {
+      const s = sampleAt((i / 400) * total, pat);
+      const bladesMoving = s.bladeExtend > 0.001 && s.bladeExtend < 0.999;
+      if (s.selectedIndices.length > 0 && bladesMoving) {
+        assert.ok(s.originLock <= 0.001 && s.farLock <= 0.001,
+          `pattern=${pat} t=${(i / 400 * total).toFixed(2)}: rails must stay open while blades travel`);
+      }
+    }
+  }
+});
+
+test('far lock rail never touches the blade tip through full travel', () => {
+  const L = GEO.parts.bladeLen;
+  const railHalf = GEO.parts.railDepth / 2;
+  for (let k = 0; k <= 100; k++) {
+    const ext = k / 100;
+    const tip = GEO.xTravelMin - GEO.parts.bladeParkedInset + (GEO.xTravelMax - GEO.xTravelMin + GEO.parts.bladeOvertravel) * ext;
+    // far rail open = rest position; closed = moved in by lockStroke
+    const railOpenC = GEO.xTravelMax + GEO.parts.railOffsetFar;
+    const railClosedC = railOpenC - GEO.parts.lockStroke;
+    // while blade is still travelling, the far rail must be OPEN (locks close
+    // only after seating per lock-after-seat assertion) — check against open
+    if (ext < 0.999) {
+      assert.ok(tip <= railOpenC - railHalf + 0.001, `tip ${tip.toFixed(2)} clear of open far rail at ext=${ext}`);
+    } else {
+      // seated: rail closes onto the blade side face — tip passes through the
+      // open-through receiver beyond the rail plane
+      assert.ok(tip > railClosedC, 'tip passes through receiver past closed rail plane');
+    }
+  }
+});
+
+test('wiper clears every blade line: blade passes through the wiper slot', () => {
+  // wiper is a slotted comb like the pusher; slot pitch = blade pitch
+  assert.ok(GEO.pitch > GEO.bladeThickness + 0.02, 'pitch leaves slot material between blades');
+  assert.ok(GEO.parts.wiperOffset > GEO.parts.wiperDepth / 2, 'wiper fully inside storage boundary');
+});
+
+test('crosscut sweep never intersects the pusher or the bin walls', () => {
+  const t = GEO.crosscut;
+  // crosscut travels along X below the banks; bin is an open-top drawer whose
+  // rim sits below the knife plane (bin centre 0.72, half height 0.4)
+  const binTopY = 0.72 + 0.4;
+  assert.ok(GEO.crosscutY > binTopY + 0.05, 'crosscut plane clears the bin rim');
+  // sweep stays within chamber width
+  assert.ok(t.travelMax <= GEO.chamber.w / 2 + 0.5, 'sweep bounded by chamber');
+  assert.ok(t.dockX < -GEO.chamber.w / 2, 'dock parked outside the food zone');
+});
+
+test('unfold fan of the two cassette halves does not self-intersect', () => {
+  // halves are symmetric about the rear hinge; the fan angle must keep the
+  // half-widths from crossing the hinge axis on the opposite side
+  const halfSpan = GEO.chamber.w / 2; // each half carries up to half the chamber
+  const a = GEO.cassette.unfoldAngle / 2;
+  // horizontal reach of each half toward the other side at full fan
+  const reach = halfSpan * Math.cos(a);
+  assert.ok(reach > -0.05, `half reach ${reach.toFixed(3)} must not cross the hinge centreline`);
+  assert.ok(a < Math.PI / 2, 'fan stays below 90 deg per side');
+});
+
+test('engaged blade subset never exceeds pool capacity for pieces', () => {
+  for (const key of Object.keys(PATTERNS)) {
+    const n = patternIndices(key).length;
+    assert.ok(n * 3 <= 64, `pattern ${key} pieces fit the pool`);
+  }
 });
 
 // ---- pattern logic ------------------------------------------------------

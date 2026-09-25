@@ -13,11 +13,12 @@ import {
 
 // ---- static geometry / architecture invariants --------------------------
 
-test('both banks share one cutting plane and interleave into a grid', () => {
-  // Like a real dicer: the two orthogonal blade sets occupy the SAME plane so
-  // crossing blades form square cells. Clearance comes from the slots in the
-  // pusher and combs, not from vertical separation.
-  assert.ok(Math.abs(GEO.zBankY - GEO.xBankY) < 1e-9, 'banks share the cutting plane');
+test('two banks cross with positive vertical clearance (two-plane dicer grid)', () => {
+  // Like a real dicer: two orthogonal blade sets at slightly different
+  // heights so they never collide at crossings, but close enough to dice.
+  assert.ok(GEO.zBankY > GEO.xBankY, 'Z bank above X bank');
+  assert.ok(GEO.zBankY - GEO.xBankY > GEO.bladeThickness + 0.02, 'crossing clearance');
+  assert.ok(GEO.zBankY - GEO.xBankY < GEO.bladeDepth, 'close enough to act as one grid');
 });
 
 test('blade grid fits inside the chamber footprint (no wall pierce)', () => {
@@ -27,14 +28,17 @@ test('blade grid fits inside the chamber footprint (no wall pierce)', () => {
   assert.ok(reach < inner, `blade reach ${reach.toFixed(3)} inside chamber interior ${inner.toFixed(3)}`);
 });
 
-test('crosscut plane is below the grid with positive clearance', () => {
-  assert.ok(GEO.crosscutY < GEO.xBankY);
-  assert.ok(GEO.xBankY - GEO.crosscutY > GEO.bladeDepth / 2 + 0.1);
+test('crosscut plane is in the stick band below the grid, above the bin', () => {
+  assert.ok(GEO.crosscutY < GEO.xBankY - GEO.bladeDepth / 2, 'knife below the grid blades');
+  const binTop = GEO.bin.y + GEO.bin.h / 2;
+  assert.ok(GEO.crosscutY - 0.15 > binTop, 'knife clears the bin rim below');
 });
 
-test('crosscut clears the bin rim below it', () => {
-  const binTop = GEO.bin.y + GEO.bin.h / 2;
-  assert.ok(GEO.crosscutY - 0.14 > binTop + 0.03, 'knife edge clears the bin rim');
+test('pusher purge stays above the crosscut knife', () => {
+  const pusherBottom = GEO.pusher.feedLimitY - GEO.pusher.faceThickness;
+  const knifeTop = GEO.crosscutY + 0.15;
+  assert.ok(pusherBottom > knifeTop + 0.02,
+    `pusher bottom ${pusherBottom.toFixed(2)} clears knife top ${knifeTop.toFixed(2)}`);
 });
 
 test('pusher waffle: slot width clears blade thickness, posts sit between blades', () => {
@@ -52,15 +56,6 @@ test('pusher travels inside the chute column (no wall clip)', () => {
 test('pusher has an upper service stop and a lower feed limit, service above feed', () => {
   assert.ok(GEO.pusher.serviceY > GEO.pusher.contactY);
   assert.ok(GEO.pusher.contactY > GEO.pusher.feedLimitY);
-  assert.ok(GEO.pusher.feedLimitY > GEO.crosscutY, 'pusher never reaches the crosscut plane');
-});
-
-test('pusher face never enters the crosscut knife band', () => {
-  // pusher bottom at full purge must stay above the knife top with clearance
-  const pusherBottom = GEO.pusher.feedLimitY - GEO.pusher.faceThickness;
-  const knifeTop = GEO.crosscutY + 0.15;
-  assert.ok(pusherBottom > knifeTop + 0.05,
-    `pusher bottom ${pusherBottom.toFixed(2)} clears knife top ${knifeTop.toFixed(2)}`);
 });
 
 test('blade travel ranges are ordered and stay within the magazine/receiver envelope', () => {

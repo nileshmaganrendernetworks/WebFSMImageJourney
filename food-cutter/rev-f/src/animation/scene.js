@@ -230,7 +230,8 @@ export function buildScene(container) {
   const W = GEO.chamber.w, H = GEO.chamber.h, D = GEO.chamber.d;
   const WALL = GEO.chamber.wall, FLOOR = GEO.chamber.floorY;
 
-  // chamber (left half) — open-top wall shell + floor plate
+  // chamber (left half) — open-top wall shell + floor plate. The floor has a
+  // central discharge opening so cut pieces fall through to the bin below.
   {
     const yc = FLOOR + H / 2;
     const wm = () => mat(C.wet, { transparent: true, opacity: 0.16, side: THREE.DoubleSide });
@@ -238,7 +239,14 @@ export function buildScene(container) {
     mkWall(W, H, WALL, 0, yc, D / 2 - WALL / 2);    // +Z wall
     mkWall(W, H, WALL, 0, yc, -D / 2 + WALL / 2);   // -Z wall
     mkWall(WALL, H, D, -W / 2 + WALL / 2, yc, 0);   // -X wall
-    mkWall(W, WALL, D, 0, FLOOR + WALL / 2, 0);     // floor plate
+    // floor plate as a ring around a central discharge hole
+    const hole = 1.5;
+    const fw = (W - hole) / 2;
+    mkWall(fw, WALL, D, -(hole / 2 + fw / 2), FLOOR + WALL / 2, 0);   // floor −X
+    mkWall(fw, WALL, D, hole / 2 + fw / 2, FLOOR + WALL / 2, 0);      // floor +X
+    const fd = (D - hole) / 2;
+    mkWall(hole, WALL, fd, 0, FLOOR + WALL / 2, -(hole / 2 + fd / 2));
+    mkWall(hole, WALL, fd, 0, FLOOR + WALL / 2, hole / 2 + fd / 2);
   }
 
   // feed chute (left half) — a straight-through square sleeve the pusher
@@ -268,15 +276,15 @@ export function buildScene(container) {
   const xBlades = [], zBlades = [];
   const BLADE_LEN = GEO.parts.bladeLen;
   offs.forEach((o) => {
-    // X bank: strip spans Z across the chamber at blade line z=o, slides along X
+    // X bank: strip length along X (its travel axis) at blade line z=o.
+    // The blade slides tip-first along +X from the origin magazine, across
+    // the chamber, into the far receiver. Cutting edge faces up.
     const bx = mkBlade(BLADE_LEN);
-    bx.rotation.y = -Math.PI / 2;      // blade length now along Z
-    // after rotY, local +X (tail->tip) maps to +X travel... orient so the
-    // cutting edge faces UP and the tail trails at the magazine side
     bx.position.set(GEO.xTravelMin, GEO.xBankY - GEO.bladeDepth, o);
     bx.visible = false; halfR.add(bx); xBlades.push(bx);
-    // Z bank: strip spans X at blade line x=o, slides along Z
+    // Z bank: strip length along Z (its travel axis) at blade line x=o
     const bz = mkBlade(BLADE_LEN);
+    bz.rotation.y = -Math.PI / 2;      // strip length now along Z
     bz.position.set(o, GEO.zBankY - GEO.bladeDepth, GEO.zTravelMin);
     bz.visible = false; halfL.add(bz); zBlades.push(bz);
   });
@@ -347,12 +355,13 @@ export function buildScene(container) {
       }
     }
   }
-  // guide shoes ride the front/back chute walls (no side walls in the way) +
-  // drive screw collar on top
+  // guide shoes ride the front/back chute walls + a short drive collar on top
+  // that stays below the chute lip at the service stop (serviceY 6.15 vs lip
+  // at ~6.37), and the drive screw is short enough not to pierce the lip.
   box(0.3, 0.4, 0.08, mat(C.green), 0, 0, GEO.chuteSize / 2 + 0.03, pusher);
   box(0.3, 0.4, 0.08, mat(C.green), 0, 0, -GEO.chuteSize / 2 - 0.03, pusher);
-  const driveCollar = cyl(0.16, 0.19, 0.34, mat(C.dryAccent, { metalness: 0.6 }), 0, 0.34, 0, pusher, 20);
-  const driveScrew = cyl(0.06, 0.06, 1.1, STEEL(), 0, 1.0, 0, pusher, 12);
+  const driveCollar = cyl(0.16, 0.19, 0.2, mat(C.dryAccent, { metalness: 0.6 }), 0, 0.14, 0, pusher, 20);
+  const driveScrew = cyl(0.06, 0.06, 0.25, STEEL(), 0, 0.3, 0, pusher, 12);
   driveScrew.castShadow = false;
   pusher.position.set(0, p.serviceY, 0);
 
@@ -380,7 +389,9 @@ export function buildScene(container) {
     edge.position.set(0, -0.14, 0); edge.castShadow = false; crosscut.add(edge);
     const shoe = box(0.3, 0.22, 0.4, mat(C.wetDark), -GEO.chamber.w / 2 - 0.1, 0, 0, crosscut);
     shoe.castShadow = false;
-    const rail = cyl(0.05, 0.05, 4.6, STEEL(), 0, -0.24, 0, crosscut, 12);
+    // short guide rail that travels with the knife but stays within the
+    // chamber width — never long enough to reach the bin walls or plinth
+    const rail = cyl(0.05, 0.05, GEO.chamber.w - 0.2, STEEL(), 0, -0.24, 0, crosscut, 12);
     rail.rotation.z = Math.PI / 2; rail.castShadow = false;
   }
   crosscut.position.set(GEO.crosscut.dockX, GEO.crosscutY, 0);
@@ -483,23 +494,23 @@ export function applyStateToScene(nodes, s, camAngle) {
   camshaft.rotation.x = (s.selectorProgress + s.feedProgress + camAngle) * Math.PI * 2;
   D1.rotation.x = -camshaft.rotation.x * 2.5;
 
-  // blades: engaged blades slide out of the origin magazine, through the
-  // wiper, across the chamber, and seat into the far receiver comb. The
-  // group's origin is the blade TAIL; the strip extends forward, so a blade
-  // is visible from the moment its tip leaves the magazine.
+  // blades: engaged blades slide tip-first out of the origin magazine,
+  // through the wiper, across the chamber, and seat into the far receiver.
+  // Parked (non-engaged) blades stay visible inside the magazines so the
+  // storage reads as loaded, not empty.
   const engaged = new Set(s.selectedIndices);
   const travelX = GEO.xTravelMax - GEO.xTravelMin;
   const travelZ = GEO.zTravelMax - GEO.zTravelMin;
   xBlades.forEach((b, i) => {
     const on = engaged.has(i) && s.tailEngaged[i];
     const ext = on ? s.bladeExtend : 0;
-    b.visible = ext > 0.001;
+    b.visible = true; // parked blades sit inside the magazine
     b.position.x = GEO.xTravelMin - GEO.parts.bladeParkedInset + (travelX + GEO.parts.bladeOvertravel) * ext;
   });
   zBlades.forEach((b, i) => {
     const on = engaged.has(i) && s.tailEngaged[i];
     const ext = on ? s.bladeExtend : 0;
-    b.visible = ext > 0.001;
+    b.visible = true;
     b.position.z = GEO.zTravelMin - GEO.parts.bladeParkedInset + (travelZ + GEO.parts.bladeOvertravel) * ext;
   });
 
@@ -517,25 +528,35 @@ export function applyStateToScene(nodes, s, camAngle) {
   // crosscut
   crosscut.position.x = s.crosscutX;
 
-  // produce: visible while loaded and not yet fed; sinks as it is pushed
+  // produce: rests on the grid plane while loaded; sinks as it is pushed
+  // through. Pusher contacts its TOP — never clips through it.
   ['carrot', 'potato'].forEach((kind) => {
     const m = produce[kind];
     if (s.produce === kind && s.produceLoaded && s.feedProgress < 0.999) {
       m.visible = true;
-      m.position.y = GEO.chamber.floorY + 0.9 + (1 - s.feedProgress) * 1.6;
+      const restY = GEO.xBankY + 0.1;          // rests on the grid
+      m.position.y = restY + (1 - s.feedProgress) * 0.9;
       m.rotation.y = kind === 'carrot' ? 0.2 : 0;
     } else m.visible = false;
   });
 
-  // cut pieces: kind from state provenance; shown after feed, binned until wash
+  // cut pieces: kind from state provenance. They spawn at the grid and DROP
+  // through the floor opening into the bin over the crosscut/strip phases.
   const counts = { stick: 0, cube: 0, coin: 0 };
   s.cutPieces.forEach(pc => { counts[pc.kind] = (counts[pc.kind] || 0) + 1; });
+  const drop = Math.min(1, s.stripProgress * 1.5 + (s.phaseId === 'park' || s.phaseId === 'disengage' ? 1 : 0));
   Object.entries(piecePools).forEach(([kind, pool]) => {
     const n = counts[kind] || 0;
     pool.forEach((m, i) => {
       const on = i < n && s.feedProgress >= 0.999 && s.extractProgress <= 0;
       m.visible = on;
-      if (on) pileInBin(m, i, Math.max(n, 1));
+      if (on) {
+        pileInBin(m, i, Math.max(n, 1));
+        // raise toward the grid before drop completes (falling path)
+        const gy = GEO.crosscutY - 0.2 - i * 0.03;
+        const by = m.position.y;
+        m.position.y = gy + (by - gy) * drop;
+      }
     });
   });
 
@@ -545,11 +566,23 @@ export function applyStateToScene(nodes, s, camAngle) {
   coupling.rotation.y = camAngle * 2;
   D2.rotation.x = -(s.couplingEngaged ? 0 : 0.6) - s.extractProgress * 0.2;
 
-  // cassette extraction (+Z) then unfold (fan of halves about the rear hinge)
+  // cassette extraction (+Z) then unfold. The halves fan about the REAR
+  // HINGE axis (hingeX, hingeY), not the cassette origin: for rotation by
+  // angle A about point (hx,hy), the group's new position is
+  //   p' = h − R(A)·h  (so geometry at the hinge stays fixed).
+  // The shallow fan angle keeps every part above the ground plane.
   cassette.position.z = GEO.cassette.seatZ + s.extractProgress * GEO.cassette.extractTravel;
   const a = s.unfoldProgress * GEO.cassette.unfoldAngle;
-  halfL.rotation.z = a * 0.5;
-  halfR.rotation.z = -a * 0.5;
+  const hx = -1.15, hy = 2.4; // hinge axis (matches the hinge barrel mesh)
+  const setFan = (half, A) => {
+    half.rotation.z = A;
+    half.position.set(
+      hx - (hx * Math.cos(A) - hy * Math.sin(A)),
+      hy - (hx * Math.sin(A) + hy * Math.cos(A)),
+      0);
+  };
+  setFan(halfL, a / 2);
+  setFan(halfR, -a / 2);
 
   // shuttle rides on the cassette, so it extracts with it (no cross-collision)
   shuttle.visible = true;

@@ -86,7 +86,7 @@ export function initialState() {
 // Interlock / assertion set. Each returns true if the state is LEGAL.
 // The UI lists these; tests sample every phase/pattern against them.
 export const ASSERTIONS = [
-  { id: 'banks-share-plane', text: 'Both banks share one cutting plane and interleave into a grid', check: () => Math.abs(GEO.zBankY - GEO.xBankY) < 1e-9 },
+  { id: 'banks-cross-clear', text: 'X and Z banks cross with positive vertical clearance (no solid crossing)', check: () => (GEO.zBankY - GEO.xBankY) > GEO.bladeThickness + 0.04 },
   { id: 'extend-after-engage', text: 'No blade extends before tail engagement', check: s => s.bladeExtend <= 0 || s.tailEngaged.some(Boolean) },
   { id: 'seat-after-travel', text: 'Receiver seated only after tip travel completes', check: s => !s.receiverSeated || s.bladeExtend >= 0.999 },
   { id: 'lock-after-seat',  text: 'Locks close only after receiver seating (when blades are engaged)', check: s => (s.originLock <= 0 && s.farLock <= 0) || s.selectedIndices.length === 0 || s.receiverSeated },

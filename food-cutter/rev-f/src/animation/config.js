@@ -13,11 +13,11 @@ export const GEO = {
   bladeThickness: 0.06,
   bladeDepth: 0.55,            // vertical height of a blade strip (tall enough
                                // to read as a knife standing in the grid)
-  xBankY: 3.12,                // Y plane of the X-bank (blades slide along X)
-  zBankY: 3.12,                // Z-bank shares the X plane: the two orthogonal
-                               // blade sets interleave into one cutting grid,
-                               // like a real dicer grid
-  crosscutY: 1.24,             // Y plane of the lower crosscut knife
+  xBankY: 2.98,                // Y plane of the X-bank (blades slide along X)
+  zBankY: 3.12,                // Z-bank sits one blade-clearance above X so the
+                               // two orthogonal sets cross without touching;
+                               // together they form one dicing grid (like a
+                               // real two-plane dicer grid)
   xTravelMin: -1.9,            // X blade tip at park (magazine mouth)
   xTravelMax: 1.9,             // X blade tip at full extension (receiver)
   zTravelMin: -1.9,            // Z blade tip at park
@@ -35,14 +35,16 @@ export const GEO = {
     faceThickness: 0.22,
     slotWidth: 0.11,           // slot opening centred on every blade line
     serviceY: 6.15,            // upper service/load hard stop (top of chute)
-    feedLimitY: 1.72,          // lower feed travel limit (purge bottom) —
-                               // stays clear of the crosscut plane (1.24+edge)
-                               // and the chamber floor
+    feedLimitY: 3.0,           // lower feed travel limit — pusher purges
+                               // produce down to the grid plane, staying above
+                               // the crosscut knife that sweeps beneath
     contactY: 4.3,             // upper contact stop after loading
   },
 
   // Crosscut --------------------------------------------------------------
-  crosscut: { travelMin: -1.7, travelMax: 1.7, dockX: -2.35 },
+  // The knife sweeps just below the grid to portion the hanging sticks.
+  crosscut: { travelMin: -1.7, travelMax: 1.7, dockX: -2.7 },
+  crosscutY: 2.55,             // in the stick band below the grid, above bin
 
   // Output bin (pull-out drawer under the grid)
   bin: { w: 1.9, h: 0.62, d: 1.9, y: 0.75 },
@@ -50,7 +52,8 @@ export const GEO = {
   // Cassette --------------------------------------------------------------
   cassette: {
     extractTravel: 4.6,        // +Z linear pull-out
-    unfoldAngle: 2.35,         // rad, fan-open of the two wet halves
+    unfoldAngle: 0.9,          // rad, fan-open of the two wet halves — kept
+                               // shallow so no part swings below the ground
     seatZ: 0,
   },
 

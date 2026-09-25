@@ -55,6 +55,14 @@ test('pusher has an upper service stop and a lower feed limit, service above fee
   assert.ok(GEO.pusher.feedLimitY > GEO.crosscutY, 'pusher never reaches the crosscut plane');
 });
 
+test('pusher face never enters the crosscut knife band', () => {
+  // pusher bottom at full purge must stay above the knife top with clearance
+  const pusherBottom = GEO.pusher.feedLimitY - GEO.pusher.faceThickness;
+  const knifeTop = GEO.crosscutY + 0.15;
+  assert.ok(pusherBottom > knifeTop + 0.05,
+    `pusher bottom ${pusherBottom.toFixed(2)} clears knife top ${knifeTop.toFixed(2)}`);
+});
+
 test('blade travel ranges are ordered and stay within the magazine/receiver envelope', () => {
   assert.ok(GEO.xTravelMin < GEO.xTravelMax);
   assert.ok(GEO.zTravelMin < GEO.zTravelMax);

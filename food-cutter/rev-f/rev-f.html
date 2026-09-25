@@ -53549,7 +53549,9 @@ const GEO = {
     faceThickness: 0.22,
     slotWidth: 0.11,           // slot opening centred on every blade line
     serviceY: 6.15,            // upper service/load hard stop (top of chute)
-    feedLimitY: 1.55,          // lower feed travel limit (purge bottom)
+    feedLimitY: 1.72,          // lower feed travel limit (purge bottom) —
+                               // stays clear of the crosscut plane (1.24+edge)
+                               // and the chamber floor
     contactY: 4.3,             // upper contact stop after loading
   },
 
@@ -54201,18 +54203,18 @@ function buildScene(container) {
   const farRailZ = mkLock(false); halfL.add(farRailZ);
   farRailZ.position.set(0, GEO.zBankY - 0.2, GEO.zTravelMax + GEO.parts.railOffsetFar);
 
-  // selector shuttle: finger combs riding on the cassette walls that hook the
-  // drive tails of the selected blades (mounted on the cassette, not the dry
-  // base, so it never collides with the chamber walls)
+  // selector shuttle: a pair of stroke arms (one per bank) that the selector
+  // cam swings to the coded position. Kept visually simple — a clean bar per
+  // bank — so the grid stays readable.
   const shuttle = new THREE.Group(); cassette.add(shuttle);
   const fingerM = mat(C.dryAccent, { metalness: 0.45, roughness: 0.4 });
   const shuttleArmX = new THREE.Group(); shuttle.add(shuttleArmX);
-  box(0.34, 0.12, D, fingerM, 0, 0, 0, shuttleArmX);
-  offs.forEach(o => { box(0.3, 0.1, 0.1, fingerM, 0.3, 0, o, shuttleArmX).castShadow = false; });
+  box(0.2, 0.14, D, fingerM, 0, 0, 0, shuttleArmX);
+  cyl(0.09, 0.09, 0.3, fingerM, 0.14, 0, 0, shuttleArmX).rotation.x = Math.PI / 2;
   shuttleArmX.position.set(GEO.xTravelMin - 0.55, GEO.xBankY - GEO.bladeDepth, 0);
   const shuttleArmZ = new THREE.Group(); shuttle.add(shuttleArmZ);
-  box(W, 0.12, 0.34, fingerM, 0, 0, 0, shuttleArmZ);
-  offs.forEach(o => { box(0.1, 0.1, 0.3, fingerM, o, 0, 0.3, shuttleArmZ).castShadow = false; });
+  box(W, 0.14, 0.2, fingerM, 0, 0, 0, shuttleArmZ);
+  cyl(0.09, 0.09, 0.3, fingerM, 0, 0, 0.14, shuttleArmZ);
   shuttleArmZ.position.set(0, GEO.zBankY - GEO.bladeDepth, GEO.zTravelMin - 0.55);
 
   // --- pusher: a waffle of square posts. Post columns align with the GAPS

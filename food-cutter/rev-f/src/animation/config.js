@@ -35,7 +35,9 @@ export const GEO = {
     faceThickness: 0.22,
     slotWidth: 0.11,           // slot opening centred on every blade line
     serviceY: 6.15,            // upper service/load hard stop (top of chute)
-    feedLimitY: 1.55,          // lower feed travel limit (purge bottom)
+    feedLimitY: 1.72,          // lower feed travel limit (purge bottom) —
+                               // stays clear of the crosscut plane (1.24+edge)
+                               // and the chamber floor
     contactY: 4.3,             // upper contact stop after loading
   },
 

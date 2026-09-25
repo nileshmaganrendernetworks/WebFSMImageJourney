@@ -13,26 +13,52 @@ import {
 
 // ---- static geometry / architecture invariants --------------------------
 
-test('X and Z banks are in different Y planes with positive clearance', () => {
-  assert.ok(GEO.zBankY > GEO.xBankY, 'Z bank above X bank');
-  assert.ok(GEO.zBankY - GEO.xBankY > GEO.bladeDepth, 'bank planes clear of blade depth');
-});test('crosscut plane is below both banks with positive clearance', () => {
-  assert.ok(GEO.crosscutY < GEO.xBankY && GEO.crosscutY < GEO.zBankY);
+test('both banks share one cutting plane and interleave into a grid', () => {
+  // Like a real dicer: the two orthogonal blade sets occupy the SAME plane so
+  // crossing blades form square cells. Clearance comes from the slots in the
+  // pusher and combs, not from vertical separation.
+  assert.ok(Math.abs(GEO.zBankY - GEO.xBankY) < 1e-9, 'banks share the cutting plane');
+});
+
+test('blade grid fits inside the chamber footprint (no wall pierce)', () => {
+  const offs = bladeOffsets();
+  const reach = Math.abs(offs[0]) + GEO.bladeThickness / 2;
+  const inner = GEO.chamber.w / 2 - GEO.chamber.wall;
+  assert.ok(reach < inner, `blade reach ${reach.toFixed(3)} inside chamber interior ${inner.toFixed(3)}`);
+});
+
+test('crosscut plane is below the grid with positive clearance', () => {
+  assert.ok(GEO.crosscutY < GEO.xBankY);
   assert.ok(GEO.xBankY - GEO.crosscutY > GEO.bladeDepth / 2 + 0.1);
 });
 
-test('pusher slot clears every blade line (slot wider than blade + margin)', () => {
-  assert.ok(GEO.pusher.slotWidth > GEO.bladeThickness + 0.02);
+test('crosscut clears the bin rim below it', () => {
+  const binTop = GEO.bin.y + GEO.bin.h / 2;
+  assert.ok(GEO.crosscutY - 0.14 > binTop + 0.03, 'knife edge clears the bin rim');
+});
+
+test('pusher waffle: slot width clears blade thickness, posts sit between blades', () => {
+  assert.ok(GEO.pusher.slotWidth > GEO.bladeThickness + 0.02, 'slot clears blade');
+  assert.ok(GEO.pusher.slotWidth < GEO.pitch - 0.04, 'post material remains between slots');
+});
+
+test('pusher travels inside the chute column (no wall clip)', () => {
+  // pusher plate half-width is set by the blade grid edge; chute is wider
+  const gridHalf = (GEO.bladesPerBank - 1) / 2 * GEO.pitch + GEO.pitch / 2;
+  assert.ok(gridHalf < GEO.chuteSize / 2, 'pusher plate narrower than chute sleeve');
+  assert.ok(GEO.chuteSize / 2 <= GEO.chamber.w / 2, 'chute fits the chamber footprint');
 });
 
 test('pusher has an upper service stop and a lower feed limit, service above feed', () => {
   assert.ok(GEO.pusher.serviceY > GEO.pusher.contactY);
   assert.ok(GEO.pusher.contactY > GEO.pusher.feedLimitY);
+  assert.ok(GEO.pusher.feedLimitY > GEO.crosscutY, 'pusher never reaches the crosscut plane');
 });
 
-test('blade travel ranges are ordered', () => {
+test('blade travel ranges are ordered and stay within the magazine/receiver envelope', () => {
   assert.ok(GEO.xTravelMin < GEO.xTravelMax);
   assert.ok(GEO.zTravelMin < GEO.zTravelMax);
+  assert.ok(GEO.xTravelMax + GEO.parts.bladeOvertravel > GEO.xTravelMax + GEO.parts.combOffset, 'seated tip enters receiver');
 });
 
 test('13 blade lines per bank, offsets centred and evenly pitched', () => {

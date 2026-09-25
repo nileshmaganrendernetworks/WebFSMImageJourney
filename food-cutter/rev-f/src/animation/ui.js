@@ -12,6 +12,14 @@ export function buildUI(root, callbacks) {
     <h1>Rev F — Programmable Food Chopper <span class="tag">KINEMATIC PROTOTYPE</span></h1>
     <div id="step-label"></div>
     <div id="mech-line"></div>
+    <div id="legend">
+      <span><i style="background:#dde6f0"></i>Blades</span>
+      <span><i style="background:#ff8c2f"></i>Cams / shuttle</span>
+      <span><i style="background:#ffb020"></i>Lock clamps</span>
+      <span><i style="background:#66c2ff"></i>Receivers</span>
+      <span><i style="background:#2f9e6e"></i>Wipers / stripper</span>
+      <span><i style="background:#39414f"></i>Cassette / mags</span>
+    </div>
   </div>
 
   <div id="panel">

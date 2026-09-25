@@ -86,7 +86,7 @@ export function initialState() {
 // Interlock / assertion set. Each returns true if the state is LEGAL.
 // The UI lists these; tests sample every phase/pattern against them.
 export const ASSERTIONS = [
-  { id: 'banks-parallel',   text: 'X and Z banks never intersect', check: () => GEO.zBankY - GEO.xBankY > GEO.bladeDepth + 0.05 },
+  { id: 'banks-share-plane', text: 'Both banks share one cutting plane and interleave into a grid', check: () => Math.abs(GEO.zBankY - GEO.xBankY) < 1e-9 },
   { id: 'extend-after-engage', text: 'No blade extends before tail engagement', check: s => s.bladeExtend <= 0 || s.tailEngaged.some(Boolean) },
   { id: 'seat-after-travel', text: 'Receiver seated only after tip travel completes', check: s => !s.receiverSeated || s.bladeExtend >= 0.999 },
   { id: 'lock-after-seat',  text: 'Locks close only after receiver seating (when blades are engaged)', check: s => (s.originLock <= 0 && s.farLock <= 0) || s.selectedIndices.length === 0 || s.receiverSeated },
@@ -153,11 +153,12 @@ export function applyPhase(prev, step, k) {
     case 'feed': {
       s.feedProgress = k;
       s.pusherY = P.contactY - (P.contactY - P.feedLimitY) * k;
-      // cut pieces generated from produce profile at end of feed
+      // grid feed portions produce into sticks (one per engaged cell column);
+      // the crosscut below portions sticks into cubes (or coins when slicing)
       if (k >= 0.999 && s.produce) {
-        const sticks = s.selectedIndices.length;
-        const kind = 'stick';
-        s.cutPieces = Array.from({ length: sticks * 3 }, (_, i) => ({ produce: s.produce, kind, i }));
+        const cols = Math.max(1, s.selectedIndices.length);
+        s.cutPieces = Array.from({ length: Math.min(16, cols * 2) }, (_, i) =>
+          ({ produce: s.produce, kind: 'stick', i }));
       }
       break;
     }

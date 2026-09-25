@@ -4,33 +4,46 @@
 
 export const GEO = {
   // Blade banks -----------------------------------------------------------
+  // The blade grid lives INSIDE the chamber footprint: blade line offsets
+  // span ±1.02 while the chamber interior is ±1.13, so no blade ever
+  // pierces a wall. Real 4/8/12/20 mm dice map to the `pitchMm` scale.
   bladesPerBank: 13,           // conceptual blade lines per bank
-  pitch: 0.44,                 // scene-normalised 4 mm equivalent
-  bladeThickness: 0.055,
-  bladeDepth: 0.42,            // vertical extent of a blade strip
-  xBankY: 2.58,                // Y plane of the X-bank (blades slide along X)
-  zBankY: 3.12,                // Y plane of the Z-bank (blades slide along Z)
+  pitch: 0.17,                 // scene units between blade lines
+  pitchMm: 4,                  // one pitch = one 4 mm dice cell
+  bladeThickness: 0.06,
+  bladeDepth: 0.55,            // vertical height of a blade strip (tall enough
+                               // to read as a knife standing in the grid)
+  xBankY: 3.12,                // Y plane of the X-bank (blades slide along X)
+  zBankY: 3.12,                // Z-bank shares the X plane: the two orthogonal
+                               // blade sets interleave into one cutting grid,
+                               // like a real dicer grid
   crosscutY: 1.24,             // Y plane of the lower crosscut knife
-  xTravelMin: -3.55,           // X blade travel, origin side
-  xTravelMax: 3.55,            // X blade travel, far side
-  zTravelMin: -2.65,           // Z blade travel, origin side
-  zTravelMax: 2.65,            // Z blade travel, far side
+  xTravelMin: -1.9,            // X blade tip at park (magazine mouth)
+  xTravelMax: 1.9,             // X blade tip at full extension (receiver)
+  zTravelMin: -1.9,            // Z blade tip at park
+  zTravelMax: 1.9,             // Z blade tip at full extension
 
   // Food chamber ----------------------------------------------------------
-  chamber: { w: 2.4, h: 2.2, d: 2.4, floorY: 1.62 },
+  chamber: { w: 2.4, h: 2.2, d: 2.4, floorY: 1.62, wall: 0.07 },
   chuteTop: 6.4,               // top of feed chute
+  chuteSize: 2.3,              // chute column is a straight-through sleeve the
+                               // pusher passes through; slightly wider than
+                               // the pusher plate, matching the chamber width
 
   // Pusher ----------------------------------------------------------------
   pusher: {
     faceThickness: 0.22,
-    slotWidth: 0.09,           // clearance slot at every blade line
-    serviceY: 5.55,            // upper service/load hard stop
-    feedLimitY: 0.92,          // lower feed travel limit (purge bottom)
-    contactY: 4.05,            // upper contact stop after loading
+    slotWidth: 0.11,           // slot opening centred on every blade line
+    serviceY: 6.15,            // upper service/load hard stop (top of chute)
+    feedLimitY: 1.55,          // lower feed travel limit (purge bottom)
+    contactY: 4.3,             // upper contact stop after loading
   },
 
   // Crosscut --------------------------------------------------------------
-  crosscut: { travelMin: -1.7, travelMax: 1.7, dockX: -2.25 },
+  crosscut: { travelMin: -1.7, travelMax: 1.7, dockX: -2.35 },
+
+  // Output bin (pull-out drawer under the grid)
+  bin: { w: 1.9, h: 0.62, d: 1.9, y: 0.75 },
 
   // Cassette --------------------------------------------------------------
   cassette: {
@@ -39,8 +52,9 @@ export const GEO = {
     seatZ: 0,
   },
 
-  // Blade carrier storage (origin-side magazines, explicit — no tiny boxes)
-  magazine: { xX: -4.55, xZ: -3.55, length: 1.7 },
+  // Blade carrier storage — slim wall-hugging magazines outside the chamber,
+  // blade strips park flat inside and slide out of the mouth
+  magazine: { xX: -1.85, xZ: -1.85, r: 0.22 },
 
   // Derived part extents used by both rendering and collision checks.
   // Keep the rendered scene and the assertions reading the same numbers.

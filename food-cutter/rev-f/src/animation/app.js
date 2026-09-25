@@ -15,6 +15,10 @@ export function startApp(container) {
   let playing = true, t = 0, last = performance.now();
   let camAngle = 0;
 
+  // deep-link: #t=SECONDS jumps the timeline (and pauses), like model3d.html
+  const hashT = parseFloat((location.hash.match(/t=([\d.]+)/) || [])[1]);
+  if (Number.isFinite(hashT)) { t = Math.max(0, Math.min(hashT, tl.total - 0.001)); playing = false; }
+
   // camera views + user orbit/zoom
   const views = {
     iso:   { p: [9, 7.4, 12], l: [0, 2.6, 0] },

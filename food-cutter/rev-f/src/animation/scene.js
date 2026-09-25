@@ -166,6 +166,42 @@ export function buildScene(container) {
   [[-1.9, -1.6], [1.9, -1.6], [-1.9, 1.6], [1.9, 1.6]].forEach(([x, z]) =>
     cyl(0.16, 0.2, 0.18, mat(C.baseDark), x, 0.06, z, dry, 16));
 
+  // --- appliance frame: four corner pillars rise from the plinth and carry
+  // a top ring the chamber housing hangs from. This is what turns the parts
+  // from floating blocks into one assembled machine.
+  const frameM = mat(C.base, { metalness: 0.35, roughness: 0.5 });
+  const pillarX = 1.42, pillarZ = 1.42;
+  const pillarTopY = GEO.chamber.floorY + GEO.chamber.h + 0.18; // meets housing roof
+  [[-pillarX, -pillarZ], [pillarX, -pillarZ], [-pillarX, pillarZ], [pillarX, pillarZ]].forEach(([x, z]) => {
+    const pil = box(0.18, pillarTopY - 1.0, 0.18, frameM, x, (1.0 + pillarTopY) / 2, z, dry);
+    pil.castShadow = true;
+    cyl(0.13, 0.16, 0.1, mat(C.baseDark), x, 1.06, z, dry, 14).castShadow = false; // foot collar
+  });
+  // top ring beams joining the pillars (front/back/left/right)
+  const ringY = pillarTopY;
+  box(pillarX * 2 + 0.18, 0.16, 0.18, frameM, 0, ringY, -pillarZ, dry);
+  box(pillarX * 2 + 0.18, 0.16, 0.18, frameM, 0, ringY, pillarZ, dry);
+  box(0.18, 0.16, pillarZ * 2 + 0.18, frameM, -pillarX, ringY, 0, dry);
+  box(0.18, 0.16, pillarZ * 2 + 0.18, frameM, pillarX, ringY, 0, dry);
+
+  // mid-height support ring: the wet cassette seats onto this deck, and the
+  // crosscut guide rails hang from it — so the knife station is visibly
+  // mounted, not floating
+  const deckY = GEO.crosscutY - 0.32;
+  box(pillarX * 2 + 0.18, 0.12, 0.16, frameM, 0, deckY, -pillarZ, dry);
+  box(pillarX * 2 + 0.18, 0.12, 0.16, frameM, 0, deckY, pillarZ, dry);
+  box(0.16, 0.12, pillarZ * 2 + 0.18, frameM, -pillarX, deckY, 0, dry);
+  box(0.16, 0.12, pillarZ * 2 + 0.18, frameM, pillarX, deckY, 0, dry);
+  // crosscut guide rails: fixed to the deck, the knife carrier slides on them
+  cyl(0.05, 0.05, pillarX * 2, STEEL(), 0, GEO.crosscutY - 0.24, -GEO.chamber.d / 2 + 0.35, dry, 12).rotation.z = Math.PI / 2;
+  cyl(0.05, 0.05, pillarX * 2, STEEL(), 0, GEO.crosscutY - 0.24, GEO.chamber.d / 2 - 0.35, dry, 12).rotation.z = Math.PI / 2;
+
+  // camshaft bearing blocks bolt the shaft to the plinth at both ends
+  [[-1.85], [1.45]].forEach(([x]) => {
+    box(0.16, 0.34, 0.3, mat(C.baseDark), x, 1.55, -1.2, dry).castShadow = false;
+    cyl(0.1, 0.1, 0.2, mat(C.baseDark), x, 1.7, -1.2, dry, 14).rotation.z = Math.PI / 2;
+  });
+
   // D1 cycle gearmotor — finned motor barrel + end cap + gearbox + shaft
   const D1 = new THREE.Group(); dry.add(D1);
   cyl(0.4, 0.4, 0.95, mat(C.dryAccent, { metalness: 0.5 }), 0, 0, 0, D1);
@@ -230,6 +266,13 @@ export function buildScene(container) {
   const W = GEO.chamber.w, H = GEO.chamber.h, D = GEO.chamber.d;
   const WALL = GEO.chamber.wall, FLOOR = GEO.chamber.floorY;
 
+  // hopper skirt: a flared housing that joins the top frame ring down to the
+  // chamber housing, so the chute/pusher column is part of the machine body
+  {
+    const skirt = cyl(1.75, 1.35, 0.9, mat(C.base, { metalness: 0.3, roughness: 0.55, transparent: true, opacity: 0.92 }), 0, GEO.chuteTop - 0.45, 0, halfL, 4, true);
+    skirt.rotation.y = Math.PI / 4; skirt.castShadow = false;
+  }
+
   // chamber (left half) — open-top wall shell + floor plate. The floor has a
   // central discharge opening so cut pieces fall through to the bin below.
   {
@@ -289,12 +332,20 @@ export function buildScene(container) {
     bz.visible = false; halfL.add(bz); zBlades.push(bz);
   });
 
-  // Slim magazines hug the outer walls (X bank on halfR, Z bank on halfL)
+  // Slim magazines hug the outer walls (X bank on halfR, Z bank on halfL),
+  // each bolted to a mounting cheek so nothing floats
   const xMag = mkMagazine(D + 0.2, GEO.magazine.r); halfR.add(xMag);
   xMag.rotation.y = Math.PI / 2; // magazine length along Z
   xMag.position.set(GEO.xTravelMin - GEO.magazine.r - 0.12, GEO.xBankY - GEO.bladeDepth / 2, 0);
   const zMag = mkMagazine(W + 0.2, GEO.magazine.r); halfL.add(zMag);
   zMag.position.set(0, GEO.zBankY - GEO.bladeDepth / 2, GEO.zTravelMin - GEO.magazine.r - 0.12);
+  // mounting cheeks: vertical plates tying each magazine to the chamber wall
+  const cheekM = mat(C.wet, { metalness: 0.25, roughness: 0.5 });
+  box(0.06, GEO.bladeDepth + 0.5, D + 0.2, cheekM, GEO.xTravelMin - GEO.magazine.r * 2 - 0.2, GEO.xBankY - GEO.bladeDepth / 2, 0, halfR).castShadow = false;
+  box(W + 0.2, GEO.bladeDepth + 0.5, 0.06, cheekM, 0, GEO.zBankY - GEO.bladeDepth / 2, GEO.zTravelMin - GEO.magazine.r * 2 - 0.2, halfL).castShadow = false;
+  // far-side backing plates the receivers + far clamps mount against
+  box(0.06, GEO.bladeDepth + 0.5, D + 0.2, cheekM, GEO.xTravelMax + GEO.parts.railOffsetFar + 0.3, GEO.xBankY - GEO.bladeDepth / 2, 0, halfR).castShadow = false;
+  box(W + 0.2, GEO.bladeDepth + 0.5, 0.06, cheekM, 0, GEO.zBankY - GEO.bladeDepth / 2, GEO.zTravelMax + GEO.parts.railOffsetFar + 0.3, halfL).castShadow = false;
 
   // wipers at the food-zone/storage boundary — squeegee lips
   const xWiper = box(0.1, 0.34, D, mat(C.green, { roughness: 0.7 }), GEO.xTravelMin + GEO.parts.wiperOffset, GEO.xBankY, 0, halfR);
@@ -389,10 +440,11 @@ export function buildScene(container) {
     edge.position.set(0, -0.14, 0); edge.castShadow = false; crosscut.add(edge);
     const shoe = box(0.3, 0.22, 0.4, mat(C.wetDark), -GEO.chamber.w / 2 - 0.1, 0, 0, crosscut);
     shoe.castShadow = false;
-    // short guide rail that travels with the knife but stays within the
-    // chamber width — never long enough to reach the bin walls or plinth
-    const rail = cyl(0.05, 0.05, GEO.chamber.w - 0.2, STEEL(), 0, -0.24, 0, crosscut, 12);
-    rail.rotation.z = Math.PI / 2; rail.castShadow = false;
+    // second shoe at the far end so the knife is carried on both rails
+    const shoe2 = box(0.3, 0.22, 0.4, mat(C.wetDark), GEO.chamber.w / 2 + 0.1, 0, 0, crosscut);
+    shoe2.castShadow = false;
+    // the knife rides the two fixed guide rails mounted on the frame deck
+    // (rails stay behind; only the carrier moves)
   }
   crosscut.position.set(GEO.crosscut.dockX, GEO.crosscutY, 0);
 
@@ -540,11 +592,20 @@ export function applyStateToScene(nodes, s, camAngle) {
     } else m.visible = false;
   });
 
-  // cut pieces: kind from state provenance. They spawn at the grid and DROP
-  // through the floor opening into the bin over the crosscut/strip phases.
+  // cut pieces: kind from state provenance. The crosscut portions sticks at
+  // the grid; the severed pieces then FALL through the floor opening into the
+  // bin. The fall starts as soon as the cut completes and eases over the
+  // unlock/wipe phases — pieces never hover in open air.
   const counts = { stick: 0, cube: 0, coin: 0 };
   s.cutPieces.forEach(pc => { counts[pc.kind] = (counts[pc.kind] || 0) + 1; });
-  const drop = Math.min(1, s.stripProgress * 1.5 + (s.phaseId === 'park' || s.phaseId === 'disengage' ? 1 : 0));
+  // fall progress: 0 until the cut finishes, then eases to 1 by mid-strip
+  const afterCut = s.crosscutParked && s.feedProgress >= 0.999;
+  const fall = !afterCut ? 0 : Math.min(1,
+    (s.originLock < 0.999 ? 0.25 : 0) +          // began falling once unlocked
+    (1 - s.originLock) * 0.35 +                  // unlock phase advances the fall
+    s.wiperProgress * 0.3 +                      // wipe continues it
+    s.stripProgress * 0.4 +                      // strip completes it
+    (s.phaseId === 'park' || s.phaseId === 'disengage' || s.phaseId === 'extract' || s.phaseId === 'unfold' ? 1 : 0));
   Object.entries(piecePools).forEach(([kind, pool]) => {
     const n = counts[kind] || 0;
     pool.forEach((m, i) => {
@@ -552,10 +613,11 @@ export function applyStateToScene(nodes, s, camAngle) {
       m.visible = on;
       if (on) {
         pileInBin(m, i, Math.max(n, 1));
-        // raise toward the grid before drop completes (falling path)
-        const gy = GEO.crosscutY - 0.2 - i * 0.03;
+        // lerp from just under the grid (spawn) down into the bin
+        const gy = GEO.crosscutY - 0.2 - (i % 5) * 0.05;
         const by = m.position.y;
-        m.position.y = gy + (by - gy) * drop;
+        const f = fall * fall * (3 - 2 * fall); // smoothstep
+        m.position.y = gy + (by - gy) * f;
       }
     });
   });
